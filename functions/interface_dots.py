@@ -24,4 +24,4 @@ def scat_dots(dots_kind):
         ax.scatter(target_kind_yx[1], target_kind_yx[0], s=size) # scatter. Be aware that the indecies are in shape of (y,x)
 
     ax.axis([-1, num_vertical, -1, num_horizontal]) # set axis limit
-    ax.set_box_aspect(1) # normalize the length in the figure
+    ax.set_aspect(1) # normalize the length in the figure
