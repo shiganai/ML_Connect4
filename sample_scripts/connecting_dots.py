@@ -1,8 +1,4 @@
-import importlib
-
 from functions import interface_dots
-importlib.reload(interface_dots)
-
 dots_kind_matrix = interface_dots.generate_random_dots(num_dummy_kind=2,num_kind=1)
 dots_kind_matrix = interface_dots.fall_dots_once(dots_kind_matrix)
 
