@@ -19,76 +19,75 @@ def print_dots(dots_kind_matrix):
     import numpy as np
     print(np.flipud(dots_kind_matrix))
 
-def animate_dots_no_motion(dots_kind_matrix_3D, anime_mode='func'):
-    is_animating = True
+def get_base_dots_info(dots_kind_matrix):
+    # get the shape of box
+    num_vertical = dots_kind_matrix.shape[0]
+    num_horizontal = dots_kind_matrix.shape[1]
+    return num_vertical, num_horizontal
+
+def animate_dots_no_motion(dots_kind_matrix_3D, mode='subplot'):
     if type(dots_kind_matrix_3D) is not list:
         dots_kind_matrix_3D = [dots_kind_matrix_3D]
-        is_animating = False
     
-    import numpy as np
 
     dots_kind_matrix = dots_kind_matrix_3D[0]
-
-    max_kinds = dots_kind_matrix.max() # get max for for-loop index
-    max_kinds = int(max_kinds) # make the max as int for using range()
     
-    # get the shape of box
-    num_horizontal = dots_kind_matrix.shape[1]
-    num_vertical = dots_kind_matrix.shape[0]
-
     size = 172 * 1 # set scatter size. 
     #TODO: search scatter normalization, or use circle plot using radius
 
+    import numpy as np
     import matplotlib.pyplot as plt
-    # import matplotlib.animation as animation
-
-    fig, ax = plt.subplots()
-    ax.axis([-1, num_horizontal, -1, num_vertical]) # set axis limit
-    ax.set_aspect(1) # normalize the length in the figure
+    fig = plt.figure()
+    num_vertical, num_horizontal = get_base_dots_info(dots_kind_matrix)
     x_mesh, y_mesh = np.meshgrid(range(num_horizontal), range(num_vertical))
 
-    def scat_dots(dots_kind_matrix):
-        # dots_kind_matrix = np.flipud(dots_kind_matrix)
+    def scat_dots(ax, dots_kind_matrix):
+        ax.axis([-1, num_horizontal, -1, num_vertical]) # set axis limit
+        ax.set_aspect(1) # normalize the length in the figure
         return ax.scatter(x_mesh, y_mesh, s=size, c=np.array(colors)[dots_kind_matrix.flatten()])
     
-    if is_animating:
-        if anime_mode == 'func':
-            anime = anime_funcUpdate(fig, ax, dots_kind_matrix_3D, scat_dots)
-        elif anime_mode == 'artists':
-            anime = anime_artists(fig, ax, dots_kind_matrix_3D, scat_dots)
-        return anime
+    if mode =='subplot':
+        ax, container, = scat_dots_multi_subplot(fig, dots_kind_matrix_3D, scat_dots)
+        return fig, ax, container,
     else:
-        container = scat_dots(dots_kind_matrix)
-        return container
+        ax = fig.add_subplot(1,1,1)
+        if mode == 'anime:func':
+            anime = anime_funcUpdate(fig, ax, dots_kind_matrix_3D, scat_dots)
+        elif mode == 'anime:artists':
+            anime = anime_artists(fig, ax, dots_kind_matrix_3D, scat_dots)
+        return fig, ax, anime, 
+
+def scat_dots_multi_subplot(fig, dots_kind_matrix_3D, scat_dots):
+    ax = []
+    container = []
+    for frame_index in range( dots_kind_matrix_3D.__len__() ):
+        ax.append( fig.add_subplot(1, dots_kind_matrix_3D.__len__(), frame_index+1) )
+        container.append(scat_dots(ax[-1], dots_kind_matrix_3D[frame_index]))
+        
+    return ax, container, 
     
 def anime_funcUpdate(fig, ax, dots_kind_matrix_3D, scat_dots):
     import matplotlib.animation as animation
 
     def update_frame(frame_index):
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
         ax.cla()
         ax.set_title("frame_index = "+str(frame_index))
-        scat_dots(dots_kind_matrix_3D[frame_index])
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
+        scat_dots(ax, dots_kind_matrix_3D[frame_index])
     
     anime = animation.FuncAnimation(fig=fig, func=update_frame, frames=2,interval=1000)
     return anime
-    # plt.show()
 
 def anime_artists(fig, ax, dots_kind_matrix_3D, scat_dots):
     import matplotlib.animation as animation
 
     artists=[]
     for frame_index in range( dots_kind_matrix_3D.__len__() ):
+        container = scat_dots(ax, dots_kind_matrix_3D[frame_index])
         title = ax.text(ax.get_xlim()[0],ax.get_ylim()[1]*1.05,"frame_index = "+str(frame_index))
-        container = scat_dots(dots_kind_matrix_3D[frame_index])
         artists.append([container,title])
 
     anime = animation.ArtistAnimation(fig=fig, artists=artists, interval=1000) # anime is needed to keep animation visually.
     return anime
-    # plt.show()
 
 def fall_dots_once(dots_kind_matrix):
     import numpy as np

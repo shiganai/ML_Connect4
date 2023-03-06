@@ -7,10 +7,15 @@ interface_dots.print_dots(dots_kind_matrix_falled)
 
 interface_dots.animate_dots_no_motion(dots_kind_matrix_falled)
 import matplotlib.pyplot as plt
-plt.show()
+plt.show(block=False)
 
-anime = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled])
-plt.show()
+_,_,container = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled])
+plt.show(block=False)
 
-anime = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled], anime_mode='artists')
-plt.show()
+_,_,anime = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled], mode='anime:func')
+plt.show(block=False)
+plt.pause(0.1)
+
+_,_,anime = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled], mode='anime:artists')
+plt.show(block=False)
+plt.pause(0.1)

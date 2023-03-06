@@ -4,4 +4,4 @@ interface_dots.print_dots(dots_kind_matrix)
 anime = interface_dots.animate_dots_no_motion(dots_kind_matrix)
 
 import matplotlib.pyplot as plt
-plt.show()
+plt.show(block=False)
