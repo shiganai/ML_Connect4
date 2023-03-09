@@ -5,7 +5,7 @@ interface_dots.print_dots(dots_kind_matrix)
 dots_kind_matrix_falled = interface_dots.fall_dots_once(dots_kind_matrix)
 interface_dots.print_dots(dots_kind_matrix_falled)
 
-interface_dots.animate_dots_no_motion(dots_kind_matrix_falled)
+# interface_dots.animate_dots_no_motion(dots_kind_matrix_falled)
 import matplotlib.pyplot as plt
 plt.show(block=False)
 
@@ -16,6 +16,9 @@ _,_,anime = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_m
 plt.show(block=False)
 plt.pause(0.1)
 
-_,_,anime = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled], mode='anime:artists')
-plt.show(block=False)
-plt.pause(0.1)
+# mode anime:artists is abondoned.
+# =============================================================================
+# _,_,anime = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled], mode='anime:artists')
+# plt.show(block=False)
+# plt.pause(0.1)
+# =============================================================================
