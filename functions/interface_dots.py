@@ -34,7 +34,7 @@ def animate_dots_no_motion(dots_kind_matrix_3D, mode='subplot'):
 
     dots_kind_matrix = dots_kind_matrix_3D[0]
     
-    size = 172 * 1 # Set scatter size. 
+    size = 172 * 1/2 # Set scatter size. 
 
     import numpy as np
     import matplotlib.pyplot as plt
@@ -146,13 +146,14 @@ def anime_artists(fig, ax, dots_kind_matrix_3D, scat_dots):
 def fall_dots_once(dots_kind_matrix):
     import numpy as np
 
-    dots_kind_matrix_falled = np.copy(dots_kind_matrix)
+    # dots_kind_matrix_falled = np.copy(dots_kind_matrix)
+    dots_kind_matrix_falled = dots_kind_matrix
 
-    is_empty_matrix = dots_kind_matrix < 0
+    is_empty_matrix = dots_kind_matrix_falled < 0
     empty_sorted_indecies = np.argsort(is_empty_matrix,axis=0)
 
     # Get the shape of box
-    num_horizontal = dots_kind_matrix.shape[1]
+    num_horizontal = dots_kind_matrix_falled.shape[1]
 
     for target_horizontal_index in range(num_horizontal):
         target_vertical_vector = dots_kind_matrix_falled[:,target_horizontal_index]
@@ -264,8 +265,8 @@ def connect_dots_right(dots_kind_matrix):
 
 def delete_connected_dots(dots_kind_matrix, connected_dots_list, connected_threshold=connected_threshold_default):
     
-    # connected_dots_list = connect_dots(dots_kind_matrix)
-    dots_kind_matrix_deleted = np.copy(dots_kind_matrix)
+    # dots_kind_matrix_deleted = np.copy(dots_kind_matrix)
+    dots_kind_matrix_deleted = dots_kind_matrix
     
     for connected_dots in connected_dots_list:
         if connected_dots[0].size > 3:
@@ -274,7 +275,8 @@ def delete_connected_dots(dots_kind_matrix, connected_dots_list, connected_thres
     return dots_kind_matrix_deleted
 
 def delete_and_fall_dots(dots_kind_matrix, connected_dots_list, connected_threshold=connected_threshold_default):
-    dots_kind_matrix_returned = np.copy(dots_kind_matrix)
+    # dots_kind_matrix_returned = np.copy(dots_kind_matrix)
+    dots_kind_matrix_returned = dots_kind_matrix
     
     dots_kind_matrix_returned = \
         delete_connected_dots(dots_kind_matrix, connected_dots_list)
@@ -293,18 +295,29 @@ def delete_and_fall_dots_to_the_end(dots_kind_matrix, connected_threshold=connec
     
     dots_transition = [dots_kind_matrix]
     dots_kind_matrix_returned = dots_kind_matrix # Not copy.
+    loop_num = 0
     while ~is_delete_end:
-        # dots_kind_matrix_returned = \
-        #     delete_connected_dots(dots_kind_matrix, connected_dots_list)
-        # dots_kind_matrix_returned = fall_dots_once(dots_kind_matrix_returned)
+        loop_num = loop_num + 1
         
-        dots_kind_matrix_returned, _, _ = \
-            delete_and_fall_dots(dots_kind_matrix_returned, connected_dots_list, connected_threshold)
-            
+        dots_kind_matrix_returned = np.copy(dots_kind_matrix_returned)
+        dots_kind_matrix_returned = \
+            delete_connected_dots(dots_kind_matrix_returned, connected_dots_list)
         dots_transition.append(dots_kind_matrix_returned)
         
+        dots_kind_matrix_returned = np.copy(dots_kind_matrix_returned)
+        dots_kind_matrix_returned = fall_dots_once(dots_kind_matrix_returned)
+        dots_transition.append(dots_kind_matrix_returned)
+        
+# =============================================================================
+#         # Do deleting and falling in one function
+#         dots_kind_matrix_returned = np.copy(dots_kind_matrix_returned)
+#         dots_kind_matrix_returned, _, _ = \
+#             delete_and_fall_dots(dots_kind_matrix_returned, connected_dots_list, connected_threshold)
+#         dots_transition.append(dots_kind_matrix_returned)
+# =============================================================================
+            
         connected_dots_list, max_connected_num = connect_dots(dots_kind_matrix_returned)
         is_delete_end = max_connected_num < connected_threshold
         
-    return dots_transition
+    return dots_transition, loop_num
     

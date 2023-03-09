@@ -11,7 +11,7 @@ plt.show(block=False)
 
 interface_dots.print_dots(dots_kind_matrix)
 
-connected_dots_list = interface_dots.connect_dots(dots_kind_matrix)
+connected_dots_list, _ = interface_dots.connect_dots(dots_kind_matrix)
 for connected_dots in connected_dots_list:
     print(connected_dots)
 
