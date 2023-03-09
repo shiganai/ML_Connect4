@@ -15,6 +15,7 @@ def generate_random_dots(num_horizontal=5, num_vertical=10, num_kind=3,num_dummy
         warnings.warn('num_kind is supported up to 5. The color will be duplicated')
     dots_kind_matrix = np.random.randint(0, num_kind + num_dummy_kind + 1,(num_vertical, num_horizontal))
     dots_kind_matrix[dots_kind_matrix>num_kind] = -1
+    dots_kind_matrix = np.vstack([dots_kind_matrix, np.full((3,num_horizontal),-1)])
     return dots_kind_matrix
 
 def get_base_dots_info(dots_kind_matrix):
@@ -166,13 +167,18 @@ def delete_and_fall_dots(dots_kind_matrix, connected_dots_list, connected_thresh
     return dots_kind_matrix_returned, connected_dots_list, is_delete_end
 
 def delete_and_fall_dots_to_the_end(dots_kind_matrix, connected_threshold=connected_threshold_default):
-    connected_dots_list, max_connected_num = connect_dots(dots_kind_matrix)
+
+    dots_transition = [dots_kind_matrix]
+    dots_kind_matrix_returned = np.copy(dots_kind_matrix)
+    dots_kind_matrix_returned = fall_dots_once(dots_kind_matrix_returned) # Make sure that dots have falled.
+    if ~(dots_kind_matrix == dots_kind_matrix_returned).all():
+        dots_transition.append(dots_kind_matrix_returned)
+    
+    connected_dots_list, max_connected_num = connect_dots(dots_kind_matrix_returned)
     is_delete_end = max_connected_num < connected_threshold
     
-    dots_transition = [dots_kind_matrix]
-    dots_kind_matrix_returned = dots_kind_matrix # Not copy.
     loop_num = 0
-    while ~is_delete_end:
+    while not(is_delete_end):
         loop_num = loop_num + 1
         
         dots_kind_matrix_returned = np.copy(dots_kind_matrix_returned)
@@ -196,4 +202,41 @@ def delete_and_fall_dots_to_the_end(dots_kind_matrix, connected_threshold=connec
         is_delete_end = max_connected_num < connected_threshold
         
     return dots_transition, loop_num
+
+
+def get_candidate(dots_kind_matrix, next_2dots):
+    num_vertical, num_horizontal = get_base_dots_info(dots_kind_matrix)
     
+    container = get_candidate_vertical(dots_kind_matrix, next_2dots) # next_2dots lie vertically
+    container.extend( get_candidate_horizontal(dots_kind_matrix, next_2dots) ) # next_2dots lie horizontally
+    
+    if ~(next_2dots[0] == next_2dots[1]):
+        next_2dots = [next_2dots[1], next_2dots[0]]
+        container.extend( get_candidate_vertical(dots_kind_matrix, next_2dots) ) # next_2dots lie vertically
+        container.extend( get_candidate_horizontal(dots_kind_matrix, next_2dots) ) # next_2dots lie horizontally
+        
+    return container
+
+def get_candidate_vertical(dots_kind_matrix, next_2dots):
+    num_vertical, num_horizontal = get_base_dots_info(dots_kind_matrix)
+    dots_kind_matrix_candidate = dots_kind_matrix
+    candidate_list = []
+    for horizontal_index in range(num_horizontal):
+        dots_kind_matrix_candidate = np.copy(dots_kind_matrix)
+        dots_kind_matrix_candidate[-2,horizontal_index] = next_2dots[0]
+        dots_kind_matrix_candidate[-1,horizontal_index] = next_2dots[1]
+        candidate_list.append(dots_kind_matrix_candidate)
+        
+    return candidate_list
+
+def get_candidate_horizontal(dots_kind_matrix, next_2dots):
+    num_vertical, num_horizontal = get_base_dots_info(dots_kind_matrix)
+    dots_kind_matrix_candidate = dots_kind_matrix
+    candidate_list = []
+    for horizontal_index in range(num_horizontal-1):
+        dots_kind_matrix_candidate = np.copy(dots_kind_matrix)
+        dots_kind_matrix_candidate[-2,horizontal_index] = next_2dots[0]
+        dots_kind_matrix_candidate[-2,horizontal_index+1] = next_2dots[1]
+        candidate_list.append(dots_kind_matrix_candidate)
+        
+    return candidate_list

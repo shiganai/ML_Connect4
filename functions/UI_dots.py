@@ -27,9 +27,11 @@ def animate_dots_no_motion(dots_kind_matrix_3D, mode='subplot'):
     num_vertical, num_horizontal = eg.get_base_dots_info(dots_kind_matrix)
     x_mesh, y_mesh = np.meshgrid(range(num_horizontal), range(num_vertical))
 
-    def scat_dots(ax, dots_kind_matrix):
+    def scat_dots(ax, dots_kind_matrix, title_str=""):
         ax.axis([-1, num_horizontal, -1, num_vertical]) # Set axis limit
         ax.set_aspect(1) # Normalize the length in the figure
+        ax.set_title(title_str, fontsize=20)
+        
         up_connected_matrix = eg.connect_dots_up(dots_kind_matrix)
         right_connected_matrix = eg.connect_dots_right(dots_kind_matrix)
 
@@ -85,7 +87,8 @@ def scat_dots_multi_subplot(fig, dots_kind_matrix_3D, scat_dots):
     container = []
     for frame_index in range( subplot_num ):
         ax.append( fig.add_subplot(subplot_row_num, subplot_col_num, frame_index+1) )
-        container.append(scat_dots(ax[-1], dots_kind_matrix_3D[frame_index]))
+        title_str = str(frame_index)
+        container.append(scat_dots(ax[-1], dots_kind_matrix_3D[frame_index], title_str))
         
     return ax, container, 
     
@@ -93,8 +96,8 @@ def anime_funcUpdate(fig, ax, dots_kind_matrix_3D, scat_dots):
 
     def update_frame(frame_index):
         ax.cla()
-        ax.set_title("frame_index = "+str(frame_index))
-        scat_dots(ax, dots_kind_matrix_3D[frame_index])
+        title_str = "frame_index = "+str(frame_index)
+        scat_dots(ax, dots_kind_matrix_3D[frame_index], title_str)
     
     anime = animation.FuncAnimation(fig=fig, func=update_frame, frames=2,interval=1000)
     return anime
@@ -120,4 +123,5 @@ def anime_artists(fig, ax, dots_kind_matrix_3D, scat_dots):
     anime = animation.ArtistAnimation(fig=fig, artists=artists, interval=1000) # anime is needed to keep animation visually.
     return anime
 
-    
+
+        
