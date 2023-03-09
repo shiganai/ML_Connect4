@@ -10,7 +10,7 @@ connected_threshold_default = 4
 
 def generate_random_dots(num_horizontal=5, num_vertical=10, num_kind=3,num_dummy_kind=2):
     import warnings
-    if num_kind > colors.__len__():
+    if num_kind > len(colors):
         warnings.warn('num_kind is supported up to 5. The color will be duplicated')
     import numpy as np
     dots_kind_matrix = np.random.randint(0, num_kind + num_dummy_kind + 1,(num_vertical, num_horizontal))
@@ -28,17 +28,18 @@ def get_base_dots_info(dots_kind_matrix):
     return num_vertical, num_horizontal
 
 def animate_dots_no_motion(dots_kind_matrix_3D, mode='subplot'):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
     if type(dots_kind_matrix_3D) is not list:
         dots_kind_matrix_3D = [dots_kind_matrix_3D]
     
-
     dots_kind_matrix = dots_kind_matrix_3D[0]
     
-    size = 172 * 1/2 # Set scatter size. 
+    size = 172 * 1 # Set scatter size. 
 
-    import numpy as np
-    import matplotlib.pyplot as plt
-    fig = plt.figure()
+    figsize_ratio = 1.5
+    fig = plt.figure(figsize=(8*figsize_ratio,6*figsize_ratio))
     num_vertical, num_horizontal = get_base_dots_info(dots_kind_matrix)
     x_mesh, y_mesh = np.meshgrid(range(num_horizontal), range(num_vertical))
 
@@ -102,10 +103,14 @@ def animate_dots_no_motion(dots_kind_matrix_3D, mode='subplot'):
         return fig, ax, anime, 
 
 def scat_dots_multi_subplot(fig, dots_kind_matrix_3D, scat_dots):
+    import numpy as np
+    subplot_num = len(dots_kind_matrix_3D)
+    subplot_col_num = 4
+    subplot_row_num = int( np.ceil(subplot_num / subplot_col_num) )
     ax = []
     container = []
-    for frame_index in range( dots_kind_matrix_3D.__len__() ):
-        ax.append( fig.add_subplot(1, dots_kind_matrix_3D.__len__(), frame_index+1) )
+    for frame_index in range( subplot_num ):
+        ax.append( fig.add_subplot(subplot_row_num, subplot_col_num, frame_index+1) )
         container.append(scat_dots(ax[-1], dots_kind_matrix_3D[frame_index]))
         
     return ax, container, 
@@ -134,7 +139,7 @@ def anime_artists(fig, ax, dots_kind_matrix_3D, scat_dots):
     import matplotlib.animation as animation
 
     artists=[]
-    for frame_index in range( dots_kind_matrix_3D.__len__() ):
+    for frame_index in range( len(dots_kind_matrix_3D) ):
         container = scat_dots(ax, dots_kind_matrix_3D[frame_index])
         title = ax.text(ax.get_xlim()[0],ax.get_ylim()[1]*1.05,"frame_index = "+str(frame_index))
         container.append(title)
