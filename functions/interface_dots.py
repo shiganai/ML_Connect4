@@ -175,7 +175,6 @@ def connect_dots(dots_kind_matrix):
     num_horizontal = dots_kind_matrix.shape[1]
 
     connected_dots_list = [] # Initiate a list to hold connecting info
-    connected_dots_matrix = np.full_like(dots_kind_matrix, -1)
     
 
     for target_horizontal_index in range(num_horizontal):
@@ -199,8 +198,8 @@ def connect_dots(dots_kind_matrix):
                     not_yet_checked_index = np.where(adding_connected_dots[:,2]==0)
                     if len(not_yet_checked_index[0]) == 0:
                         adding_connected_dots = np.unique(adding_connected_dots,axis=0)
+                        adding_connected_dots = np.array([adding_connected_dots[:,0], adding_connected_dots[:,1]]) # Remove is_checked_info
                         connected_dots_list.append(adding_connected_dots)
-                        connected_dots_matrix[adding_connected_dots[:,0],adding_connected_dots[:,1]] = len(connected_dots_list)
                         break
                     
                     checking_adding_connected_dots_index = not_yet_checked_index[0][-1]
@@ -235,7 +234,7 @@ def connect_dots(dots_kind_matrix):
                         # When the target dot is connected to upper, add the upeer dots to the list
                         adding_connected_dots = np.vstack([adding_connected_dots,[checking_dots_ver - 1, checking_dots_hor, False]])
 
-    return connected_dots_matrix, connected_dots_list
+    return connected_dots_list
 
 def connect_dots_up(dots_kind_matrix):
     import numpy as np
