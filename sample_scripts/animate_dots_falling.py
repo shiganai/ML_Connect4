@@ -1,26 +1,28 @@
-from functions import interface_dots
-dots_kind_matrix = interface_dots.generate_random_dots(num_dummy_kind=3)
-interface_dots.print_dots(dots_kind_matrix)
-
 import numpy as np
-dots_kind_matrix_falled = np.copy(dots_kind_matrix)
-dots_kind_matrix_falled = interface_dots.fall_dots_once(dots_kind_matrix_falled)
-interface_dots.print_dots(dots_kind_matrix_falled)
-
-# interface_dots.animate_dots_no_motion(dots_kind_matrix_falled)
 import matplotlib.pyplot as plt
+from functions import UI_dots as ui
+from functions import engine_dots as eg
+
+dots_kind_matrix = eg.generate_random_dots(num_dummy_kind=3)
+ui.print_dots(dots_kind_matrix)
+
+dots_kind_matrix_falled = np.copy(dots_kind_matrix)
+dots_kind_matrix_falled = eg.fall_dots_once(dots_kind_matrix_falled)
+ui.print_dots(dots_kind_matrix_falled)
+
+ui.animate_dots_no_motion(dots_kind_matrix_falled)
 plt.show(block=False)
 
-_,_,container = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled])
+_,_,container = ui.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled])
 plt.show(block=False)
 
-_,_,anime = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled], mode='anime:func')
+_,_,anime = ui.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled], mode='anime:func')
 plt.show(block=False)
 plt.pause(0.1)
 
 # mode anime:artists is abondoned.
 # =============================================================================
-# _,_,anime = interface_dots.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled], mode='anime:artists')
+# _,_,anime = ui.animate_dots_no_motion([dots_kind_matrix, dots_kind_matrix_falled], mode='anime:artists')
 # plt.show(block=False)
 # plt.pause(0.1)
 # =============================================================================
