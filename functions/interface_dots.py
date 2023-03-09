@@ -6,9 +6,11 @@ repeat_num = 2
 colors = colors_exist*repeat_num
 colors.append('none')
 
+connected_threshold_default = 4
+
 def generate_random_dots(num_horizontal=5, num_vertical=10, num_kind=3,num_dummy_kind=2):
     import warnings
-    if num_kind > colors.__len__():
+    if num_kind > len(colors):
         warnings.warn('num_kind is supported up to 5. The color will be duplicated')
     import numpy as np
     dots_kind_matrix = np.random.randint(0, num_kind + num_dummy_kind + 1,(num_vertical, num_horizontal))
@@ -26,17 +28,18 @@ def get_base_dots_info(dots_kind_matrix):
     return num_vertical, num_horizontal
 
 def animate_dots_no_motion(dots_kind_matrix_3D, mode='subplot'):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    
     if type(dots_kind_matrix_3D) is not list:
         dots_kind_matrix_3D = [dots_kind_matrix_3D]
     
-
     dots_kind_matrix = dots_kind_matrix_3D[0]
     
     size = 172 * 1 # Set scatter size. 
 
-    import numpy as np
-    import matplotlib.pyplot as plt
-    fig = plt.figure()
+    figsize_ratio = 1.5
+    fig = plt.figure(figsize=(8*figsize_ratio,6*figsize_ratio))
     num_vertical, num_horizontal = get_base_dots_info(dots_kind_matrix)
     x_mesh, y_mesh = np.meshgrid(range(num_horizontal), range(num_vertical))
 
@@ -100,10 +103,14 @@ def animate_dots_no_motion(dots_kind_matrix_3D, mode='subplot'):
         return fig, ax, anime, 
 
 def scat_dots_multi_subplot(fig, dots_kind_matrix_3D, scat_dots):
+    import numpy as np
+    subplot_num = len(dots_kind_matrix_3D)
+    subplot_col_num = 4
+    subplot_row_num = int( np.ceil(subplot_num / subplot_col_num) )
     ax = []
     container = []
-    for frame_index in range( dots_kind_matrix_3D.__len__() ):
-        ax.append( fig.add_subplot(1, dots_kind_matrix_3D.__len__(), frame_index+1) )
+    for frame_index in range( subplot_num ):
+        ax.append( fig.add_subplot(subplot_row_num, subplot_col_num, frame_index+1) )
         container.append(scat_dots(ax[-1], dots_kind_matrix_3D[frame_index]))
         
     return ax, container, 
@@ -132,7 +139,7 @@ def anime_artists(fig, ax, dots_kind_matrix_3D, scat_dots):
     import matplotlib.animation as animation
 
     artists=[]
-    for frame_index in range( dots_kind_matrix_3D.__len__() ):
+    for frame_index in range( len(dots_kind_matrix_3D) ):
         container = scat_dots(ax, dots_kind_matrix_3D[frame_index])
         title = ax.text(ax.get_xlim()[0],ax.get_ylim()[1]*1.05,"frame_index = "+str(frame_index))
         container.append(title)
@@ -144,13 +151,14 @@ def anime_artists(fig, ax, dots_kind_matrix_3D, scat_dots):
 def fall_dots_once(dots_kind_matrix):
     import numpy as np
 
-    dots_kind_matrix_falled = np.copy(dots_kind_matrix)
+    # dots_kind_matrix_falled = np.copy(dots_kind_matrix)
+    dots_kind_matrix_falled = dots_kind_matrix
 
-    is_empty_matrix = dots_kind_matrix < 0
+    is_empty_matrix = dots_kind_matrix_falled < 0
     empty_sorted_indecies = np.argsort(is_empty_matrix,axis=0)
 
     # Get the shape of box
-    num_horizontal = dots_kind_matrix.shape[1]
+    num_horizontal = dots_kind_matrix_falled.shape[1]
 
     for target_horizontal_index in range(num_horizontal):
         target_vertical_vector = dots_kind_matrix_falled[:,target_horizontal_index]
@@ -175,8 +183,7 @@ def connect_dots(dots_kind_matrix):
     num_horizontal = dots_kind_matrix.shape[1]
 
     connected_dots_list = [] # Initiate a list to hold connecting info
-    connected_dots_matrix = np.full_like(dots_kind_matrix, -1)
-    
+    max_connected_num = 0
 
     for target_horizontal_index in range(num_horizontal):
         for target_vertical_index in range(num_vertical):
@@ -198,9 +205,11 @@ def connect_dots(dots_kind_matrix):
                 else:
                     not_yet_checked_index = np.where(adding_connected_dots[:,2]==0)
                     if len(not_yet_checked_index[0]) == 0:
-                        adding_connected_dots = np.unique(adding_connected_dots,axis=0)
+                        adding_connected_dots = np.unique(adding_connected_dots,axis=0) # Enunique
+                        adding_connected_dots = np.array([adding_connected_dots[:,0], adding_connected_dots[:,1]]) # Remove is_checked_info
                         connected_dots_list.append(adding_connected_dots)
-                        connected_dots_matrix[adding_connected_dots[:,0],adding_connected_dots[:,1]] = len(connected_dots_list)
+                        
+                        max_connected_num = np.max([max_connected_num, adding_connected_dots[0].size]) # Refresh max_connected_num
                         break
                     
                     checking_adding_connected_dots_index = not_yet_checked_index[0][-1]
@@ -235,7 +244,7 @@ def connect_dots(dots_kind_matrix):
                         # When the target dot is connected to upper, add the upeer dots to the list
                         adding_connected_dots = np.vstack([adding_connected_dots,[checking_dots_ver - 1, checking_dots_hor, False]])
 
-    return connected_dots_matrix, connected_dots_list
+    return connected_dots_list, max_connected_num
 
 def connect_dots_up(dots_kind_matrix):
     import numpy as np
@@ -258,3 +267,62 @@ def connect_dots_right(dots_kind_matrix):
     diff_right_matrix[empty_matrix] = 1 # Replace empty cells as 1, meanning not connected
     right_connected_matrix = diff_right_matrix == 0 # Get the upper connected cells
     return right_connected_matrix
+
+def delete_connected_dots(dots_kind_matrix, connected_dots_list, connected_threshold=connected_threshold_default):
+    
+    # dots_kind_matrix_deleted = np.copy(dots_kind_matrix)
+    dots_kind_matrix_deleted = dots_kind_matrix
+    
+    for connected_dots in connected_dots_list:
+        if connected_dots[0].size > 3:
+            dots_kind_matrix_deleted[connected_dots[0], connected_dots[1]] = -1
+    
+    return dots_kind_matrix_deleted
+
+def delete_and_fall_dots(dots_kind_matrix, connected_dots_list, connected_threshold=connected_threshold_default):
+    # dots_kind_matrix_returned = np.copy(dots_kind_matrix)
+    dots_kind_matrix_returned = dots_kind_matrix
+    
+    dots_kind_matrix_returned = \
+        delete_connected_dots(dots_kind_matrix, connected_dots_list)
+        
+    dots_kind_matrix_returned = fall_dots_once(dots_kind_matrix_returned)
+    
+    connected_dots_list, max_connected_num = connect_dots(dots_kind_matrix_returned)
+    
+    is_delete_end = max_connected_num < connected_threshold
+    
+    return dots_kind_matrix_returned, connected_dots_list, is_delete_end
+
+def delete_and_fall_dots_to_the_end(dots_kind_matrix, connected_threshold=connected_threshold_default):
+    connected_dots_list, max_connected_num = connect_dots(dots_kind_matrix)
+    is_delete_end = max_connected_num < connected_threshold
+    
+    dots_transition = [dots_kind_matrix]
+    dots_kind_matrix_returned = dots_kind_matrix # Not copy.
+    loop_num = 0
+    while ~is_delete_end:
+        loop_num = loop_num + 1
+        
+        dots_kind_matrix_returned = np.copy(dots_kind_matrix_returned)
+        dots_kind_matrix_returned = \
+            delete_connected_dots(dots_kind_matrix_returned, connected_dots_list)
+        dots_transition.append(dots_kind_matrix_returned)
+        
+        dots_kind_matrix_returned = np.copy(dots_kind_matrix_returned)
+        dots_kind_matrix_returned = fall_dots_once(dots_kind_matrix_returned)
+        dots_transition.append(dots_kind_matrix_returned)
+        
+# =============================================================================
+#         # Do deleting and falling in one function
+#         dots_kind_matrix_returned = np.copy(dots_kind_matrix_returned)
+#         dots_kind_matrix_returned, _, _ = \
+#             delete_and_fall_dots(dots_kind_matrix_returned, connected_dots_list, connected_threshold)
+#         dots_transition.append(dots_kind_matrix_returned)
+# =============================================================================
+            
+        connected_dots_list, max_connected_num = connect_dots(dots_kind_matrix_returned)
+        is_delete_end = max_connected_num < connected_threshold
+        
+    return dots_transition, loop_num
+    

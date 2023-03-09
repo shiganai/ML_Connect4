@@ -11,11 +11,6 @@ plt.show(block=False)
 
 interface_dots.print_dots(dots_kind_matrix)
 
-connected_dots_matrix, connected_dots_list = interface_dots.connect_dots(dots_kind_matrix)
-
-# interface_dots.animate_dots_no_motion(connected_dots_matrix)
-# plt.show(block=False)
-
-# interface_dots.animate_dots_no_motion([dots_kind_matrix, connected_dots_matrix])
-# plt.show(block=False)
-
+connected_dots_list, _ = interface_dots.connect_dots(dots_kind_matrix)
+for connected_dots in connected_dots_list:
+    print(connected_dots)
