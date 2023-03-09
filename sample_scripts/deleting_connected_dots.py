@@ -5,18 +5,20 @@ from functions import interface_dots
 dots_kind_matrix = interface_dots.generate_random_dots(num_dummy_kind=1,num_kind=2)
 dots_kind_matrix = interface_dots.fall_dots_once(dots_kind_matrix)
 
-# Good dots matrix for debug
-dots_kind_matrix = np.flipud(np.array(\
-[[-1 ,-1 ,-1 ,-1 ,-1],\
- [-1 ,-1 ,-1 ,-1 ,2],\
- [ 0 ,-1 ,0 ,-1 ,2],\
- [ 1 ,-1 ,1 ,-1 ,2],\
- [ 2 ,2 ,2 ,-1 ,0],\
- [ 1 ,1 ,0 ,0 ,1],\
- [ 1 ,1 ,1 ,0 ,2],\
- [ 2 ,2 ,1 ,2 ,0],\
- [ 0 ,2 ,0 ,0 ,1],\
- [ 0 ,2 ,0 ,1 ,0]]))
+# =============================================================================
+# # Good dots matrix for debug
+# dots_kind_matrix = np.flipud(np.array(\
+# [[-1 ,-1 ,-1 ,-1 ,-1],\
+#  [-1 ,-1 ,-1 ,-1 ,2],\
+#  [ 0 ,-1 ,0 ,-1 ,2],\
+#  [ 1 ,-1 ,1 ,-1 ,2],\
+#  [ 2 ,2 ,2 ,-1 ,0],\
+#  [ 1 ,1 ,0 ,0 ,1],\
+#  [ 1 ,1 ,1 ,0 ,2],\
+#  [ 2 ,2 ,1 ,2 ,0],\
+#  [ 0 ,2 ,0 ,0 ,1],\
+#  [ 0 ,2 ,0 ,1 ,0]]))
+# =============================================================================
 
 interface_dots.print_dots(dots_kind_matrix)
 interface_dots.animate_dots_no_motion(dots_kind_matrix)
