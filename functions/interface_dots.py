@@ -6,6 +6,8 @@ repeat_num = 2
 colors = colors_exist*repeat_num
 colors.append('none')
 
+connected_threshold_default = 4
+
 def generate_random_dots(num_horizontal=5, num_vertical=10, num_kind=3,num_dummy_kind=2):
     import warnings
     if num_kind > colors.__len__():
@@ -175,7 +177,7 @@ def connect_dots(dots_kind_matrix):
     num_horizontal = dots_kind_matrix.shape[1]
 
     connected_dots_list = [] # Initiate a list to hold connecting info
-    
+    max_connected_num = 0
 
     for target_horizontal_index in range(num_horizontal):
         for target_vertical_index in range(num_vertical):
@@ -197,9 +199,11 @@ def connect_dots(dots_kind_matrix):
                 else:
                     not_yet_checked_index = np.where(adding_connected_dots[:,2]==0)
                     if len(not_yet_checked_index[0]) == 0:
-                        adding_connected_dots = np.unique(adding_connected_dots,axis=0)
+                        adding_connected_dots = np.unique(adding_connected_dots,axis=0) # Enunique
                         adding_connected_dots = np.array([adding_connected_dots[:,0], adding_connected_dots[:,1]]) # Remove is_checked_info
                         connected_dots_list.append(adding_connected_dots)
+                        
+                        max_connected_num = np.max([max_connected_num, adding_connected_dots[0].size]) # Refresh max_connected_num
                         break
                     
                     checking_adding_connected_dots_index = not_yet_checked_index[0][-1]
@@ -234,7 +238,7 @@ def connect_dots(dots_kind_matrix):
                         # When the target dot is connected to upper, add the upeer dots to the list
                         adding_connected_dots = np.vstack([adding_connected_dots,[checking_dots_ver - 1, checking_dots_hor, False]])
 
-    return connected_dots_list
+    return connected_dots_list, max_connected_num
 
 def connect_dots_up(dots_kind_matrix):
     import numpy as np
@@ -257,3 +261,50 @@ def connect_dots_right(dots_kind_matrix):
     diff_right_matrix[empty_matrix] = 1 # Replace empty cells as 1, meanning not connected
     right_connected_matrix = diff_right_matrix == 0 # Get the upper connected cells
     return right_connected_matrix
+
+def delete_connected_dots(dots_kind_matrix, connected_dots_list, connected_threshold=connected_threshold_default):
+    
+    # connected_dots_list = connect_dots(dots_kind_matrix)
+    dots_kind_matrix_deleted = np.copy(dots_kind_matrix)
+    
+    for connected_dots in connected_dots_list:
+        if connected_dots[0].size > 3:
+            dots_kind_matrix_deleted[connected_dots[0], connected_dots[1]] = -1
+    
+    return dots_kind_matrix_deleted
+
+def delete_and_fall_dots(dots_kind_matrix, connected_dots_list, connected_threshold=connected_threshold_default):
+    dots_kind_matrix_returned = np.copy(dots_kind_matrix)
+    
+    dots_kind_matrix_returned = \
+        delete_connected_dots(dots_kind_matrix, connected_dots_list)
+        
+    dots_kind_matrix_returned = fall_dots_once(dots_kind_matrix_returned)
+    
+    connected_dots_list, max_connected_num = connect_dots(dots_kind_matrix_returned)
+    
+    is_delete_end = max_connected_num < connected_threshold
+    
+    return dots_kind_matrix_returned, connected_dots_list, is_delete_end
+
+def delete_and_fall_dots_to_the_end(dots_kind_matrix, connected_threshold=connected_threshold_default):
+    connected_dots_list, max_connected_num = connect_dots(dots_kind_matrix)
+    is_delete_end = max_connected_num < connected_threshold
+    
+    dots_transition = [dots_kind_matrix]
+    dots_kind_matrix_returned = dots_kind_matrix # Not copy.
+    while ~is_delete_end:
+        # dots_kind_matrix_returned = \
+        #     delete_connected_dots(dots_kind_matrix, connected_dots_list)
+        # dots_kind_matrix_returned = fall_dots_once(dots_kind_matrix_returned)
+        
+        dots_kind_matrix_returned, _, _ = \
+            delete_and_fall_dots(dots_kind_matrix_returned, connected_dots_list, connected_threshold)
+            
+        dots_transition.append(dots_kind_matrix_returned)
+        
+        connected_dots_list, max_connected_num = connect_dots(dots_kind_matrix_returned)
+        is_delete_end = max_connected_num < connected_threshold
+        
+    return dots_transition
+    
