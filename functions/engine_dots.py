@@ -9,8 +9,17 @@ colors = colors_exist*repeat_num
 colors.append('none')
 
 connected_threshold_default = 4
+num_horizontal_default = 5
+num_vertical_default = 10
+num_kind_default = 3
+num_dummy_kind_default = 2
 
-def generate_random_dots(num_horizontal=5, num_vertical=10, num_kind=3,num_dummy_kind=2):
+
+def generate_random_dots(\
+        num_horizontal=num_horizontal_default, \
+        num_vertical=num_vertical_default, \
+        num_kind=num_kind_default, \
+        num_dummy_kind=num_dummy_kind_default):
     if num_kind > len(colors):
         warnings.warn('num_kind is supported up to 5. The color will be duplicated')
     dots_kind_matrix = np.random.randint(0, num_kind + num_dummy_kind + 1,(num_vertical, num_horizontal))
@@ -224,7 +233,7 @@ def get_candidate_vertical(dots_kind_matrix, next_2dots):
     for horizontal_index in range(num_horizontal):
         dots_kind_matrix_candidate = np.copy(dots_kind_matrix)
         dots_kind_matrix_candidate[-2,horizontal_index] = next_2dots[0]
-        dots_kind_matrix_candidate[-1,horizontal_index] = next_2dots[1]
+        dots_kind_matrix_candidate[-1,horizontal_index] = next_2dots[1] 
         candidate_list.append(dots_kind_matrix_candidate)
         
     return candidate_list
