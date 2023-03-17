@@ -213,7 +213,7 @@ class ReplayMemory(object):
 # taking each action given the current input.
 #
 
-n_squre = 256
+n_squre = 128
 class DQN(nn.Module):
 
     def __init__(self, n_observations, n_actions):
@@ -223,6 +223,8 @@ class DQN(nn.Module):
         self.layer3 = nn.Linear(n_squre, n_actions)
         
         self.layer4 = nn.Linear(n_squre, n_squre)
+        self.layer5 = nn.Linear(n_squre, n_squre)
+        self.layer6 = nn.Linear(n_squre, n_squre)
 
     # Called with either one element to determine next action, or a batch
     # during optimization. Returns tensor([[left0exp,right0exp]...]).
@@ -230,6 +232,8 @@ class DQN(nn.Module):
         x = F.relu(self.layer1(x))
         x = F.relu(self.layer2(x))
         x = F.relu(self.layer4(x))
+        x = F.relu(self.layer5(x))
+        x = F.relu(self.layer6(x))
         return self.layer3(x)
 
 
