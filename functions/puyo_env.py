@@ -14,7 +14,8 @@ class puyo_env:
             num_horizontal = eg.num_horizontal_default, \
             num_vertical = eg.num_vertical_default, \
             num_kind = eg.num_kind_default, \
-            num_dummy_kind = eg.num_dummy_kind_default):
+            num_dummy_kind = eg.num_dummy_kind_default, \
+            num_next_2dots = 3):
             
         print("construct of puyo_env is called")
 
@@ -22,6 +23,8 @@ class puyo_env:
         self.num_vertical = num_vertical
         self.num_kind = num_kind
         self.num_dummy_kind = num_dummy_kind
+        self.num_next_2dots = num_next_2dots
+        
         self.num_candidate = self.num_horizontal * 2 + (self.num_horizontal-1) * 2
         
         self.action_space = self.action_space(self)
@@ -96,26 +99,23 @@ class puyo_env:
         self.dots_kind_matrix = np.full( (self.num_vertical, self.num_horizontal), 0 )
         
     def generate_next_2dots(self):
-        self.next_2dots = np.random.randint(1,self.num_kind+1,(2,3))
+        self.next_2dots = np.random.randint(1,self.num_kind+1,(2,self.num_next_2dots))
     
     def update_next_2dots(self):
         adding_2dots = np.random.randint(1,self.num_kind+1,(1,2))
-        self.next_2dots = np.transpose(np.vstack([self.next_2dots[:,1], self.next_2dots[:,2], adding_2dots]))
+        next_2dots = []
+        for ii in range(1,self.num_next_2dots):
+            next_2dots.append(self.next_2dots[:,ii])
+        next_2dots.append(adding_2dots)
+        
+        self.next_2dots = np.transpose(np.vstack(next_2dots))
         
     def update_state(self):
         dots_kind_matrix = np.copy(self.dots_kind_matrix)
         
-        horizontal_index = 0
-        dots_kind_matrix[-2,horizontal_index] = self.next_2dots[0,horizontal_index]
-        dots_kind_matrix[-1,horizontal_index] = self.next_2dots[1,horizontal_index] 
-        
-        horizontal_index = 1
-        dots_kind_matrix[-2,horizontal_index] = self.next_2dots[0,horizontal_index]
-        dots_kind_matrix[-1,horizontal_index] = self.next_2dots[1,horizontal_index] 
-        
-        horizontal_index = 2
-        dots_kind_matrix[-2,horizontal_index] = self.next_2dots[0,horizontal_index]
-        dots_kind_matrix[-1,horizontal_index] = self.next_2dots[1,horizontal_index] 
+        for horizontal_index in range(self.num_next_2dots):
+            dots_kind_matrix[-2,horizontal_index] = self.next_2dots[0,horizontal_index]
+            dots_kind_matrix[-1,horizontal_index] = self.next_2dots[1,horizontal_index]
         
         self.dots_kind_matrix_with_candidate = dots_kind_matrix
         

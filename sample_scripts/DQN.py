@@ -84,7 +84,7 @@ from functions import engine_dots as eg
 from functions import UI_dots as ui
 if_disp_dots=False
 
-env = puyo_env.puyo_env()
+env = puyo_env.puyo_env(num_next_2dots=1)
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
