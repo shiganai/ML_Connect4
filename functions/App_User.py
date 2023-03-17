@@ -93,7 +93,7 @@ def GUI_to_play():
             
             if self.dots_kind_matrix is None:
                 # Initialized by an empty box
-                self.dots_kind_matrix = np.full( (self.num_vertical, self.num_horizontal), -1 )
+                self.dots_kind_matrix = np.full( (self.num_vertical, self.num_horizontal), 0 )
                 
                 # # Randomly generate the initial state
                 # self.dots_kind_matrix = eg.generate_random_dots(num_kind = self.num_kind)
@@ -113,7 +113,7 @@ def GUI_to_play():
                 self.next_2dots = self.next_2dots_previous
             else:
                 # default
-                self.next_2dots = np.random.randint(0,self.num_kind+1,(2,1))
+                self.next_2dots = np.random.randint(1,self.num_kind+1,(2,1))
                 
             self.horizontal_index = 0
             self.is_next_2dots_vertical = True

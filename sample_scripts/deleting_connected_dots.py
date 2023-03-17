@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from functions import UI_dots as ui
 from functions import engine_dots as eg
 
-dots_kind_matrix = eg.generate_random_dots(num_dummy_kind=1,num_kind=2)
+dots_kind_matrix = eg.generate_random_dots(num_dummy_kind=1,num_kind=3)
 dots_kind_matrix = eg.fall_dots_once(dots_kind_matrix)
 
 # =============================================================================

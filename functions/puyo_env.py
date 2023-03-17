@@ -93,13 +93,13 @@ class puyo_env:
 # =============================================================================
         
     def reset_kind_matrix(self):
-        self.dots_kind_matrix = np.full( (self.num_vertical, self.num_horizontal), -1 )
+        self.dots_kind_matrix = np.full( (self.num_vertical, self.num_horizontal), 0 )
         
     def generate_next_2dots(self):
-        self.next_2dots = np.random.randint(0,self.num_kind+1,(2,3))
+        self.next_2dots = np.random.randint(1,self.num_kind+1,(2,3))
     
     def update_next_2dots(self):
-        adding_2dots = np.random.randint(0,self.num_kind+1,(1,2))
+        adding_2dots = np.random.randint(1,self.num_kind+1,(1,2))
         self.next_2dots = np.transpose(np.vstack([self.next_2dots[:,1], self.next_2dots[:,2], adding_2dots]))
         
     def update_state(self):
@@ -146,7 +146,7 @@ class puyo_env:
     
     def get_terminated(self):
         terminated = True
-        if np.all(self.dots_kind_matrix[-2,:]==-1):
+        if np.all(self.dots_kind_matrix[-2,:]==0):
             terminated = False
         
         return terminated
