@@ -1,17 +1,19 @@
 import numpy as np
 import warnings
+from functions import UI_dots as ui
 
 # Initiate colors
 colors_exist = ['blue', 'red', 'green', 'purple', 'yellow']
 repeat_num = 2
-# colors = np.hstack([np.repeat(colors_exist,repeat_num), 'none'])
-colors = colors_exist*repeat_num
-colors.append('none')
+colors = ['none']
+colors.extend(colors_exist*repeat_num)
+
+connected_threshold_default = 4
 
 connected_threshold_default = 4
 num_horizontal_default = 5
 num_vertical_default = 10
-num_kind_default = 3
+num_kind_default = 4
 num_dummy_kind_default = 2
 
 
@@ -22,9 +24,9 @@ def generate_random_dots(\
         num_dummy_kind=num_dummy_kind_default):
     if num_kind > len(colors):
         warnings.warn('num_kind is supported up to 5. The color will be duplicated')
-    dots_kind_matrix = np.random.randint(0, num_kind + num_dummy_kind + 1,(num_vertical, num_horizontal))
-    dots_kind_matrix[dots_kind_matrix>num_kind] = -1
-    dots_kind_matrix = np.vstack([dots_kind_matrix, np.full((3,num_horizontal),-1)])
+    dots_kind_matrix = np.random.randint(0, num_kind + 1 + num_dummy_kind,(num_vertical, num_horizontal))
+    dots_kind_matrix[dots_kind_matrix>num_kind] = 0
+    dots_kind_matrix = np.vstack([dots_kind_matrix, np.full((3,num_horizontal),0)])
     return dots_kind_matrix
 
 def get_base_dots_info(dots_kind_matrix):
@@ -38,8 +40,8 @@ def fall_dots_once(dots_kind_matrix):
     # dots_kind_matrix_falled = np.copy(dots_kind_matrix)
     dots_kind_matrix_falled = dots_kind_matrix
 
-    is_empty_matrix = dots_kind_matrix_falled < 0
-    empty_sorted_indecies = np.argsort(is_empty_matrix,axis=0)
+    empty_matrix = get_empty_matrix(dots_kind_matrix)
+    empty_sorted_indecies = np.argsort(empty_matrix,axis=0)
 
     # Get the shape of box
     num_horizontal = dots_kind_matrix_falled.shape[1]
@@ -55,7 +57,7 @@ def connect_dots(dots_kind_matrix):
     # Use while true loop for checking dots connection
 
     is_checked_matrix = np.full_like(dots_kind_matrix, False, dtype=bool) # when this value is true, it is already checked and no more checking is needed.
-    empty_matrix = dots_kind_matrix == -1 # get the empty cells to replace is_checked
+    empty_matrix = get_empty_matrix(dots_kind_matrix) # get the empty cells to replace is_checked
     is_checked_matrix[empty_matrix] = True
 
     up_connected_matrix = connect_dots_up(dots_kind_matrix)
@@ -131,7 +133,7 @@ def connect_dots(dots_kind_matrix):
 
 def connect_dots_up(dots_kind_matrix):
 
-    empty_matrix = dots_kind_matrix == -1 # Get the empty cells to replace later
+    empty_matrix = get_empty_matrix(dots_kind_matrix) # Get the empty cells to replace later
     diff_up_matrix = np.vstack([dots_kind_matrix[1:,:] - dots_kind_matrix[0:-1,:], np.ones((1,dots_kind_matrix.shape[1]))]) # if this value is 0, the kinds of dot are the same between upper and lower
     # Note that 1 are inserted at the bottom cells
     
@@ -141,7 +143,7 @@ def connect_dots_up(dots_kind_matrix):
 
 def connect_dots_right(dots_kind_matrix):
 
-    empty_matrix = dots_kind_matrix == -1 # Get the empty cells to replace later
+    empty_matrix = get_empty_matrix(dots_kind_matrix) # Get the empty cells to replace later
     diff_right_matrix = np.hstack([dots_kind_matrix[:,1:] - dots_kind_matrix[:,0:-1], np.ones((dots_kind_matrix.shape[0],1))]) # if this value is 0, the kinds of dot are the same between upper and lower
     # Note that 1 are inserted at the most right cells
     
@@ -156,7 +158,7 @@ def delete_connected_dots(dots_kind_matrix, connected_dots_list, connected_thres
     
     for connected_dots in connected_dots_list:
         if connected_dots[0].size > 3:
-            dots_kind_matrix_deleted[connected_dots[0], connected_dots[1]] = -1
+            dots_kind_matrix_deleted[connected_dots[0], connected_dots[1]] = 0
     
     return dots_kind_matrix_deleted
 
@@ -213,13 +215,13 @@ def delete_and_fall_dots_to_the_end(dots_kind_matrix, connected_threshold=connec
     return dots_transition, loop_num
 
 
-def get_candidate(dots_kind_matrix, next_2dots):
+def get_candidate(dots_kind_matrix, next_2dots, is_ignore_same=False):
     num_vertical, num_horizontal = get_base_dots_info(dots_kind_matrix)
     
     container = get_candidate_vertical(dots_kind_matrix, next_2dots) # next_2dots lie vertically
     container.extend( get_candidate_horizontal(dots_kind_matrix, next_2dots) ) # next_2dots lie horizontally
     
-    if ~(next_2dots[0] == next_2dots[1]):
+    if (not(next_2dots[0] == next_2dots[1])) or (is_ignore_same):
         next_2dots = [next_2dots[1], next_2dots[0]]
         container.extend( get_candidate_vertical(dots_kind_matrix, next_2dots) ) # next_2dots lie vertically
         container.extend( get_candidate_horizontal(dots_kind_matrix, next_2dots) ) # next_2dots lie horizontally
@@ -249,3 +251,6 @@ def get_candidate_horizontal(dots_kind_matrix, next_2dots):
         candidate_list.append(dots_kind_matrix_candidate)
         
     return candidate_list
+
+def get_empty_matrix(dots_kind_matrix):
+    return dots_kind_matrix == 0

@@ -7,7 +7,7 @@ from functions import engine_dots as eg
 num_horizontal = 5
 num_vertical = 7
 num_kind = 3
-dots_kind_matrix = np.full((num_vertical, num_horizontal), -1)
+dots_kind_matrix = np.full((num_vertical, num_horizontal), 0)
 
 # =============================================================================
 # # Prepare rondomly generated dots
@@ -23,11 +23,12 @@ dots_kind_matrix = np.full((num_vertical, num_horizontal), -1)
 while True:
     if_user_input_end = False
     
-    next_2dots = np.random.randint(0,num_kind,(2,1))
+    next_2dots = np.random.randint(1,num_kind+1,(2,1))
     
     candidate_list = eg.get_candidate(dots_kind_matrix, next_2dots)
     ui.animate_dots_no_motion(candidate_list)
     plt.show(block=False)
+    plt.pause(0.001)
 
     while True:
         try:
