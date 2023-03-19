@@ -237,54 +237,42 @@ class puyo_env:
         best_NN_value_list = [] # ありえる次の2ドットそれぞれの最高NN値
         # 色が同じ時も、違う時も、出る確率は同じ。
         # 赤赤が出る確率は1/4*1/4, 赤青が出る確率も1/4*1/4
-        
-        # next_2dotの組み合わせを全て列挙
-        next_2dots_list = []
-        
-# =============================================================================
-#         # 2つの色をどちらも考える場合
-#         for ii in range(self.num_kind):
-#             for jj in range(ii, self.num_kind):
-#                 next_2dots_list.append(np.array([ii+1,jj+1]))
-# =============================================================================
-        # 1色だけ考える
         for ii in range(self.num_kind):
-                next_2dots_list.append(np.array([ii+1,0]))
+            for jj in range(ii, self.num_kind):
+                next_2dots = np.array([ii+1,jj+1])
+                # 赤赤の場合は並べ方は片方だけでいい。確率は計算せず、最高のものを選ぶだけだから。
+                dots_exp = eg.get_candidate(\
+                                dots_kind_matrix=dots_kind_matrix, \
+                                next_2dots=next_2dots, \
+                                listup_same=False)
                 
-        for next_2dots in next_2dots_list:
-            # 赤赤の場合は並べ方は片方だけでいい。確率は計算せず、最高のものを選ぶだけだから。
-            dots_exp = eg.get_candidate(\
-                            dots_kind_matrix=dots_kind_matrix, \
-                            next_2dots=next_2dots, \
-                            listup_same=False)
-            
-            best_loop_num_given2dots = np.NINF
-            best_NN_value_given2dots = np.NINF
-            for candidate in dots_exp: # 与えられた2ドットを、ある場所においた場合
-                # その時のドットの推移と連鎖数
-                dots_transition, loop_num_given2dots_givenPlace = eg.delete_and_fall_dots_to_the_end(candidate, 4)
-                if not(np.all(dots_transition[-1][-2,:]==0)):
-                    # ゲームオーバーなら更新の考慮する必要なし
-                    continue
-                
-                NN_value_given2dots_givenPlace = model(dots_transition[-1])
-                NN_value_given2dots_givenPlace = NN_value_given2dots_givenPlace.to('cpu').detach().numpy().copy()
-                NN_value_given2dots_givenPlace = NN_value_given2dots_givenPlace[0]
-                
-                if best_loop_num_given2dots < loop_num_given2dots_givenPlace:
-                    best_loop_num_given2dots = loop_num_given2dots_givenPlace
+                best_loop_num_given2dots = np.NINF
+                best_NN_value_given2dots = np.NINF
+                for candidate in dots_exp: # 与えられた2ドットを、ある場所においた場合
+                    # その時のドットの推移と連鎖数
+                    dots_transition, loop_num_given2dots_givenPlace = eg.delete_and_fall_dots_to_the_end(candidate, 4)
+                    if not(np.all(dots_transition[-1][-2,:]==0)):
+                        # ゲームオーバーなら更新の考慮する必要なし
+                        continue
                     
-                if best_NN_value_given2dots < NN_value_given2dots_givenPlace:
-                    best_NN_value_given2dots = NN_value_given2dots_givenPlace
-            
-            if best_loop_num_given2dots == np.NINF:
-                # もし一度もbest_loop_num_given2dotsが更新されなかった時
-                # (ある与えられた2ドットをどこにおいてもゲームオーバーになるとき)(ゲームオーバーになる2ドットが存在するとき)
-                best_loop_num_given2dots = -3 # リスクの大きさ。無根拠
-                best_NN_value_given2dots = -3 # リスクの大きさ。無根拠
+                    NN_value_given2dots_givenPlace = model(dots_transition[-1])
+                    NN_value_given2dots_givenPlace = NN_value_given2dots_givenPlace.to('cpu').detach().numpy().copy()
+                    NN_value_given2dots_givenPlace = NN_value_given2dots_givenPlace[0]
+                    
+                    if best_loop_num_given2dots < loop_num_given2dots_givenPlace:
+                        best_loop_num_given2dots = loop_num_given2dots_givenPlace
+                        
+                    if best_NN_value_given2dots < NN_value_given2dots_givenPlace:
+                        best_NN_value_given2dots = NN_value_given2dots_givenPlace
                 
-            best_loop_num_list.append(best_loop_num_given2dots)
-            best_NN_value_list.append(best_NN_value_given2dots)
+                if best_loop_num_given2dots == np.NINF:
+                    # もし一度もbest_loop_num_given2dotsが更新されなかった時
+                    # (ある与えられた2ドットをどこにおいてもゲームオーバーになるとき)(ゲームオーバーになる2ドットが存在するとき)
+                    best_loop_num_given2dots = -3 # リスクの大きさ。無根拠
+                    best_NN_value_given2dots = -3 # リスクの大きさ。無根拠
+                    
+                best_loop_num_list.append(best_loop_num_given2dots)
+                best_NN_value_list.append(best_NN_value_given2dots)
                 
         loop_num_exp = np.array(best_loop_num_list).mean()
         NN_value_exp = np.array(best_NN_value_list).mean()

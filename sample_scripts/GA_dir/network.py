@@ -25,10 +25,10 @@ class Network(nn.Module):
         linear_input_size = color_mat_3d.size(dim=0)
         
         self.layer1 = nn.Linear(linear_input_size, n_squre)
-        # self.layer2 = nn.Linear(n_squre, n_squre)
+        self.layer2 = nn.Linear(n_squre, n_squre)
         self.layer3 = nn.Linear(n_squre, 1)
         
-        self.all_layers = [self.layer1, self.layer3]
+        self.all_layers = [self.layer1, self.layer2, self.layer3]
         for ii in self.all_layers:
             nn.init.normal(ii.weight, mean=0,std=0.1)
 
@@ -41,8 +41,8 @@ class Network(nn.Module):
         
         x = self.layer1(color_mat_3d)
         x = F.relu(x)
-        # x = self.layer2(x)
-        # x = F.relu(x)
+        x = self.layer2(x)
+        x = F.relu(x)
         x = self.layer3(x)
         return x
     
