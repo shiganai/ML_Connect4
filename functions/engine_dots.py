@@ -221,13 +221,13 @@ def delete_and_fall_dots_to_the_end(dots_kind_matrix, connected_threshold=connec
     return dots_transition, loop_num
 
 
-def get_candidate(dots_kind_matrix, next_2dots, is_ignore_same=False):
+def get_candidate(dots_kind_matrix, next_2dots, listup_same=False):
     num_vertical, num_horizontal = get_base_dots_info(dots_kind_matrix)
     
     container = get_candidate_vertical(dots_kind_matrix, next_2dots) # next_2dots lie vertically
     container.extend( get_candidate_horizontal(dots_kind_matrix, next_2dots) ) # next_2dots lie horizontally
     
-    if (not(next_2dots[0] == next_2dots[1])) or (is_ignore_same):
+    if (not(next_2dots[0] == next_2dots[1])) or (listup_same):
         next_2dots = [next_2dots[1], next_2dots[0]]
         container.extend( get_candidate_vertical(dots_kind_matrix, next_2dots) ) # next_2dots lie vertically
         container.extend( get_candidate_horizontal(dots_kind_matrix, next_2dots) ) # next_2dots lie horizontally
