@@ -49,7 +49,9 @@ class Network(nn.Module):
     def generate_3d_color_mat(self, dots_kind_matrix):
         color_mat_3d = []
         for ii in range(self.num_kind):
-            each_color_mat = dots_kind_matrix == ii + 1
+            each_color_mat = (dots_kind_matrix == ii + 1) * 1.0
+            each_color_mat[each_color_mat==0] = -1.0
+            each_color_mat[dots_kind_matrix==0] = 0
             color_mat_3d.append(each_color_mat)
         color_mat_3d = np.array(color_mat_3d)
                 

@@ -37,7 +37,7 @@ def eval_network(env, model):
     return mean_score
     
 
-pop_size = 100
+pop_size = 200
 population = Population(env=env, size=pop_size)
 score = 0
 lines = 0
