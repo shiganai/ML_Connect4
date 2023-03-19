@@ -36,7 +36,7 @@ class puyo_env:
         self.turn_count_threshold = -1 + 4 * 5
     
 # =============================================================================
-#     copying openaigym sample
+#     copying openaigym class
 # =============================================================================
     def reset(self):
         # print("reset of puyo_env is called")
@@ -66,8 +66,24 @@ class puyo_env:
         
         # if loop_num < 2:
         #     reward = 0
+            
+        
+# =============================================================================
+#         connected_dots_list, _ = eg.connect_dots(self.dots_kind_matrix)
+#         self.connected_dots_list = connected_dots_list
+#         for connected_dots in connected_dots_list:
+#             if len(connected_dots[0]) > 1:
+#                 reward = reward + 1.0/2/2/2
+#             if len(connected_dots[0]) > 2:
+#                 reward = reward + 1.0/2/2/2
+# =============================================================================
         
         self.turn_count = self.turn_count + 1
+# =============================================================================
+#         terminated = self.get_terminated()
+#         if terminated:
+#             reward -= 10
+# =============================================================================
             
         terminated = (self.turn_count > self.turn_count_threshold) or (self.get_terminated())
         # terminated = self.get_terminated()
@@ -122,7 +138,7 @@ class puyo_env:
         self.candidates = eg.get_candidate(\
                               dots_kind_matrix=self.dots_kind_matrix, \
                               next_2dots=self.next_2dots[:,0], \
-                              listup_same=True)
+                              is_ignore_same=True)
         if not(len(self.candidates) == self.num_candidate):
             raise Exception("not(len(self.candidates) == self.num_candidate)")
             
@@ -158,63 +174,78 @@ class puyo_env:
         
         while True:
             NN_values = []
-            exp_values = [] # 期待値評価
-            exp_loop_num_values = [] # 連鎖数期待値
-            exp_NN_values = [] # NN_value期待値
             for evaled_candidate in self.candidates_dots_result:
-                # それぞれの場所に確定している次の2ドットを落とした場合の結果に対して...
-                # さらに次の未確定の2ドットに対して連鎖数の期待値と、NN_valueの期待値を得る
-                # 連鎖数の期待値は数学的に確定された期待値
-                # NN_valueの期待値はNNが予想する更に先の未確定の2ドットを含めた連鎖数の期待値
-                loop_num_exp, NN_value_exp = self.list_expectation(evaled_candidate, model)
-                exp_loop_num_values.append(loop_num_exp)
-                exp_NN_values.append(NN_value_exp)
+                if np.all(evaled_candidate[-2,:]==0):
+                    sum_value = model(evaled_candidate)
+                    sum_value = sum_value.to('cpu').detach().numpy().copy()
+                    sum_value = sum_value[0]
+                else:
+                    sum_value = np.NINF
+# =============================================================================
+#                 sum_value = 0
+#                 for ii in range(self.num_kind):
+#                     each_dot_mat = evaled_candidate == ii+1
+#                     each_dot_mat = each_dot_mat * 2.0
+#                     each_dot_mat[each_dot_mat==0] = 1.0
+#                     each_dot_mat[evaled_candidate==0] = 0.0
+#                     state = torch.tensor(each_dot_mat, dtype=torch.float32, device=device).unsqueeze(0)
+#                     current_value = model(state)
+#                     current_value = current_value.to('cpu').detach().numpy().copy()
+#                     sum_value += current_value
+# =============================================================================
+                NN_values.append(sum_value)
                 
             
+            NN_values = np.array(NN_values)
+            # NNの計算値が最も大きいものを特定
+            best_NN_value = NN_values.max()
+            best_NN_index = np.where(NN_values == best_NN_value)[0]
+            if len(best_NN_index) > 1:
+                best_NN_index = best_NN_index[np.random.randint(0, len(best_NN_index))]
+            else:
+                best_NN_index = best_NN_index[0]
             
-            # 確定連鎖数が最も大きいものを特定
+            best_index = best_NN_index
+            
+            # 想定される連鎖数が最も大きいものを特定
             best_loop_num_value = np.array(self.candidates_loop_num).max()
             best_loop_num_index = np.where(self.candidates_loop_num == best_loop_num_value)[0]
+            
             if len(best_loop_num_index) > 1:
-                best_loop_num_index_best_exp_index = np.array(exp_loop_num_values)[best_loop_num_index].argmax()
-                best_loop_num_index = best_loop_num_index[best_loop_num_index_best_exp_index]
+                best_loop_num_index_best_NN_index = NN_values[best_loop_num_index].argmax()
+                best_loop_num_index = best_loop_num_index[best_loop_num_index_best_NN_index]
+                # best_loop_num_index = np.random.randint(0, len(best_loop_num_index))
+                
             else:
                 best_loop_num_index = best_loop_num_index[0]
             
-            # 連鎖数期待値評価が最も大きいものを特定
-            exp_loop_num_values = np.array(exp_loop_num_values)
-            best_loop_num_exp_value = exp_loop_num_values.max()
-            best_loop_num_exp_index = np.where(exp_loop_num_values == best_loop_num_exp_value)[0]
-            if len(best_loop_num_exp_index) > 1:
-                best_loop_num_exp_index = best_loop_num_exp_index[np.random.randint(0, len(best_loop_num_exp_index))]
-            else:
-                best_loop_num_exp_index = best_loop_num_exp_index[0]
-            
-            
-            # NN_value期待値評価が最も大きいものを特定
-            exp_NN_values = np.array(exp_NN_values)
-            best_NN_exp_value = exp_NN_values.max()
-            best_NN_exp_index = np.where(exp_NN_values == best_NN_exp_value)[0]
-            if len(best_NN_exp_index) > 1:
-                best_NN_exp_index = best_NN_exp_index[np.random.randint(0, len(best_NN_exp_index))]
-            else:
-                best_NN_exp_index = best_NN_exp_index[0]
-            
-            # 選ぶ用の配列作成
-            best_values = np.array([best_loop_num_value, best_loop_num_exp_value, best_NN_exp_value])
-            best_values_indices = [best_loop_num_index, best_loop_num_exp_index, best_NN_exp_index]
-            best_values_labels = ["LN_d", "LN_e", "NN_e"]
-            
-            choise = best_values.argmax()
-            best_index = best_values_indices[choise]
             if if_disp:
-                print("LN_d: {}, LN_e: {:>5.2f}, NN_e: {:>5.2f}, ".format(\
-                                                              best_loop_num_value, \
-                                                              best_loop_num_exp_value, \
-                                                              best_NN_exp_value\
-                                                              ), end="")
-                print("chose " + best_values_labels[choise], end="")
+                print("loop_num: {}, NN_value: {:>5.2f}".format(best_loop_num_value, best_NN_value), \
+                      end="")
+                    
+            if best_loop_num_value > 0:
+                if best_loop_num_index == best_NN_index:
+                    None
+                    if if_disp:
+                        print(", and they chose the same candidate", end="")
+                else:
+                    if best_loop_num_value > 9:
+                        best_index = best_loop_num_index
+                        if if_disp:
+                            print(", so chose loop_num", end="")
+                    else:
+                        if best_loop_num_value > best_NN_value:
+                            best_index = best_loop_num_index
+                            if if_disp:
+                                print(", so chose loop_num", end="")
+                        else:
+                            if if_disp:
+                                print(", so chose NN_value", end="")
+            
+            if if_disp:
                 print(" at turn: " + str(self.turn_count))
+                
+            if if_disp:
                 dots_transition.append(self.candidates[best_index])
                 
             observation, reward, terminated, truncated, info = self.step(best_index)
@@ -231,50 +262,3 @@ class puyo_env:
         # return max_reward + sum_reward, dots_transition
         # return max_reward, dots_transition
         return sum_reward, dots_transition
-    
-    def list_expectation(self, dots_kind_matrix, model):
-        best_loop_num_list = [] # ありえる次の2ドットそれぞれの最高連鎖数
-        best_NN_value_list = [] # ありえる次の2ドットそれぞれの最高NN値
-        # 色が同じ時も、違う時も、出る確率は同じ。
-        # 赤赤が出る確率は1/4*1/4, 赤青が出る確率も1/4*1/4
-        for ii in range(self.num_kind):
-            for jj in range(ii, self.num_kind):
-                next_2dots = np.array([ii+1,jj+1])
-                # 赤赤の場合は並べ方は片方だけでいい。確率は計算せず、最高のものを選ぶだけだから。
-                dots_exp = eg.get_candidate(\
-                                dots_kind_matrix=dots_kind_matrix, \
-                                next_2dots=next_2dots, \
-                                listup_same=False)
-                
-                best_loop_num_given2dots = np.NINF
-                best_NN_value_given2dots = np.NINF
-                for candidate in dots_exp: # 与えられた2ドットを、ある場所においた場合
-                    # その時のドットの推移と連鎖数
-                    dots_transition, loop_num_given2dots_givenPlace = eg.delete_and_fall_dots_to_the_end(candidate, 4)
-                    if not(np.all(dots_transition[-1][-2,:]==0)):
-                        # ゲームオーバーなら更新の考慮する必要なし
-                        continue
-                    
-                    NN_value_given2dots_givenPlace = model(dots_transition[-1])
-                    NN_value_given2dots_givenPlace = NN_value_given2dots_givenPlace.to('cpu').detach().numpy().copy()
-                    NN_value_given2dots_givenPlace = NN_value_given2dots_givenPlace[0]
-                    
-                    if best_loop_num_given2dots < loop_num_given2dots_givenPlace:
-                        best_loop_num_given2dots = loop_num_given2dots_givenPlace
-                        
-                    if best_NN_value_given2dots < NN_value_given2dots_givenPlace:
-                        best_NN_value_given2dots = NN_value_given2dots_givenPlace
-                
-                if best_loop_num_given2dots == np.NINF:
-                    # もし一度もbest_loop_num_given2dotsが更新されなかった時
-                    # (ある与えられた2ドットをどこにおいてもゲームオーバーになるとき)(ゲームオーバーになる2ドットが存在するとき)
-                    best_loop_num_given2dots = -3 # リスクの大きさ。無根拠
-                    best_NN_value_given2dots = -3 # リスクの大きさ。無根拠
-                    
-                best_loop_num_list.append(best_loop_num_given2dots)
-                best_NN_value_list.append(best_NN_value_given2dots)
-                
-        loop_num_exp = np.array(best_loop_num_list).mean()
-        NN_value_exp = np.array(best_NN_value_list).mean()
-        
-        return loop_num_exp, NN_value_exp
