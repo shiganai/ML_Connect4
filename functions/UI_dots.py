@@ -21,8 +21,8 @@ def animate_dots_no_motion(dots_kind_matrix_3D, fig=None, ax=None, mode='subplot
     
     size = 172 * 1 # Set scatter size. 
 
-    if fig is None:
-        fig = plt.figure(figsize=(6.4,4.8))
+    # if fig is None:
+    #     fig = plt.figure(figsize=(6.4,4.8))
         
     num_vertical, num_horizontal = eg.get_base_dots_info(dots_kind_matrix)
     x_mesh, y_mesh = np.meshgrid(range(num_horizontal), range(num_vertical))

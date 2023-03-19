@@ -5,6 +5,9 @@ import matplotlib.animation as animation
 from functions import UI_dots as ui
 from functions import engine_dots as eg
 
+import torch
+device = 'cpu'
+
 class puyo_env:
     
     # def __init__(self):
@@ -26,10 +29,11 @@ class puyo_env:
         self.num_next_2dots = num_next_2dots
         
         self.num_candidate = self.num_horizontal * 2 + (self.num_horizontal-1) * 2
+        self.num_dots = self.num_horizontal * self.num_vertical
         
         self.action_space = self.action_space(self)
         
-        self.turn_count_threshold = 100
+        self.turn_count_threshold = -1 + 4 * 5
     
 # =============================================================================
 #     copying openaigym class
@@ -59,7 +63,10 @@ class puyo_env:
         state = self.update_state()
         observation = state
         
-        reward = float(loop_num * loop_num)
+        if loop_num < 2:
+            reward = 0
+        else:
+            reward = float(loop_num**3)
         
 # =============================================================================
 #         connected_dots_list, _ = eg.connect_dots(self.dots_kind_matrix)
@@ -72,6 +79,12 @@ class puyo_env:
 # =============================================================================
         
         self.turn_count = self.turn_count + 1
+# =============================================================================
+#         terminated = self.get_terminated()
+#         if terminated:
+#             reward -= 10
+# =============================================================================
+            
         terminated = (self.turn_count > self.turn_count_threshold) or (self.get_terminated())
         # terminated = self.get_terminated()
         
@@ -132,7 +145,7 @@ class puyo_env:
         self.candidates_dots_result = []
         self.candidates_loop_num = []
         for candidate in self.candidates:
-            dots_transition, loop_num = eg.delete_and_fall_dots_to_the_end(self.dots_kind_matrix, 4)
+            dots_transition, loop_num = eg.delete_and_fall_dots_to_the_end(candidate, 4)
             self.candidates_dots_result.append(dots_transition[-1])
             self.candidates_loop_num.append(loop_num)
         
@@ -150,3 +163,91 @@ class puyo_env:
             terminated = False
         
         return terminated
+    
+    def play_one_game(self, model=None, if_disp=False):
+        self.reset()
+        sum_reward = 0.1
+        max_reward = 0
+        step_count = 0
+        
+        dots_transition = []
+        
+        while True:
+            NN_values = []
+            for evaled_candidate in self.candidates_dots_result:
+                sum_value = model(evaled_candidate)
+                sum_value = sum_value.to('cpu').detach().numpy().copy()
+                sum_value = sum_value[0]
+# =============================================================================
+#                 sum_value = 0
+#                 for ii in range(self.num_kind):
+#                     each_dot_mat = evaled_candidate == ii+1
+#                     each_dot_mat = each_dot_mat * 2.0
+#                     each_dot_mat[each_dot_mat==0] = 1.0
+#                     each_dot_mat[evaled_candidate==0] = 0.0
+#                     state = torch.tensor(each_dot_mat, dtype=torch.float32, device=device).unsqueeze(0)
+#                     current_value = model(state)
+#                     current_value = current_value.to('cpu').detach().numpy().copy()
+#                     sum_value += current_value
+# =============================================================================
+                NN_values.append(sum_value)
+                
+            
+            NN_values = np.array(NN_values)
+            # NNの計算値が最も大きいものを特定
+            best_NN_value = NN_values.max()
+            best_NN_index = np.where(NN_values == best_NN_value)[0]
+            if len(best_NN_index) > 1:
+                best_NN_index = np.random.randint(0, len(best_NN_index))
+            else:
+                best_NN_index = best_NN_index[0]
+            
+            best_index = best_NN_index
+            
+            # 想定される連鎖数が最も大きいものを特定
+            best_loop_num_value = np.array(self.candidates_loop_num).max()
+            best_loop_num_index = np.where(self.candidates_loop_num == best_loop_num_value)[0]
+            
+            if len(best_loop_num_index) > 1:
+                best_loop_num_index_best_NN_index = NN_values[best_loop_num_index].argmax()
+                best_loop_num_index = best_loop_num_index[best_loop_num_index_best_NN_index]
+                # best_loop_num_index = np.random.randint(0, len(best_loop_num_index))
+                
+            else:
+                best_loop_num_index = best_loop_num_index[0]
+            
+            if best_loop_num_value > 1:
+                best_index = best_loop_num_index
+                if if_disp:
+                    print("loop_num: " + str(best_loop_num_value) + \
+                          ", so chose loop_num one at turn: " + str(self.turn_count))
+            else:
+                if (best_NN_value < best_loop_num_value) and not(best_loop_num_value < 1):
+                    best_index = best_loop_num_index
+                    if if_disp:
+                        print("loop_num: " + str(best_loop_num_value) + \
+                              ", NN_value: " + str(best_NN_value) + \
+                              ", so chose loop_num one at turn: " + str(self.turn_count))
+                else:
+                    if (not(best_index == best_loop_num_index)) and (if_disp) and (best_loop_num_value > 0):
+                        print("loop_num: " + str(best_loop_num_value) + \
+                              ", NN_value: " + str(best_NN_value) + \
+                              ", so chose NN value one at turn: " + str(self.turn_count))
+                
+            if if_disp:
+                dots_transition.append(self.candidates[best_index])
+                
+            observation, reward, terminated, truncated, info = self.step(best_index)
+                
+            sum_reward += reward
+            step_count += 1
+            
+            if reward > max_reward:
+                max_reward = reward
+            
+            if terminated:
+                break
+        
+        return max_reward + sum_reward, dots_transition
+        # return max_reward, dots_transition
+        # return sum_reward, dots_transition

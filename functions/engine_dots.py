@@ -17,17 +17,23 @@ num_kind_default = 4
 num_dummy_kind_default = 2
 
 
-def generate_random_dots(\
+def generate_empty_dots(\
         num_horizontal=num_horizontal_default, \
-        num_vertical=num_vertical_default, \
-        num_kind=num_kind_default, \
-        num_dummy_kind=num_dummy_kind_default):
-    if num_kind > len(colors):
-        warnings.warn('num_kind is supported up to 5. The color will be duplicated')
-    dots_kind_matrix = np.random.randint(0, num_kind + 1 + num_dummy_kind,(num_vertical, num_horizontal))
-    dots_kind_matrix[dots_kind_matrix>num_kind] = 0
-    dots_kind_matrix = np.vstack([dots_kind_matrix, np.full((3,num_horizontal),0)])
+        num_vertical=num_vertical_default):
+    dots_kind_matrix = np.full((num_vertical, num_horizontal), 0)
     return dots_kind_matrix
+
+    def generate_random_dots(\
+            num_horizontal=num_horizontal_default, \
+            num_vertical=num_vertical_default, \
+            num_kind=num_kind_default, \
+            num_dummy_kind=num_dummy_kind_default):
+        if num_kind > len(colors):
+            warnings.warn('num_kind is supported up to 5. The color will be duplicated')
+        dots_kind_matrix = np.random.randint(0, num_kind + 1 + num_dummy_kind,(num_vertical, num_horizontal))
+        dots_kind_matrix[dots_kind_matrix>num_kind] = 0
+        dots_kind_matrix = np.vstack([dots_kind_matrix, np.full((3,num_horizontal),0)])
+        return dots_kind_matrix
 
 def get_base_dots_info(dots_kind_matrix):
     # Get the shape of box
