@@ -62,11 +62,11 @@ class puyo_env:
         ########## define returning value
         state = self.update_state()
         observation = state
+        reward = float(loop_num**2)
         
-        if loop_num < 2:
-            reward = 0
-        else:
-            reward = float(loop_num**3)
+        # if loop_num < 2:
+        #     reward = 0
+            
         
 # =============================================================================
 #         connected_dots_list, _ = eg.connect_dots(self.dots_kind_matrix)
@@ -175,9 +175,12 @@ class puyo_env:
         while True:
             NN_values = []
             for evaled_candidate in self.candidates_dots_result:
-                sum_value = model(evaled_candidate)
-                sum_value = sum_value.to('cpu').detach().numpy().copy()
-                sum_value = sum_value[0]
+                if np.all(evaled_candidate[-2,:]==0):
+                    sum_value = model(evaled_candidate)
+                    sum_value = sum_value.to('cpu').detach().numpy().copy()
+                    sum_value = sum_value[0]
+                else:
+                    sum_value = np.NINF
 # =============================================================================
 #                 sum_value = 0
 #                 for ii in range(self.num_kind):
@@ -198,7 +201,7 @@ class puyo_env:
             best_NN_value = NN_values.max()
             best_NN_index = np.where(NN_values == best_NN_value)[0]
             if len(best_NN_index) > 1:
-                best_NN_index = np.random.randint(0, len(best_NN_index))
+                best_NN_index = best_NN_index[np.random.randint(0, len(best_NN_index))]
             else:
                 best_NN_index = best_NN_index[0]
             
@@ -216,23 +219,31 @@ class puyo_env:
             else:
                 best_loop_num_index = best_loop_num_index[0]
             
-            if best_loop_num_value > 1:
-                best_index = best_loop_num_index
-                if if_disp:
-                    print("loop_num: " + str(best_loop_num_value) + \
-                          ", so chose loop_num one at turn: " + str(self.turn_count))
-            else:
-                if (best_NN_value < best_loop_num_value) and not(best_loop_num_value < 1):
-                    best_index = best_loop_num_index
+            if if_disp:
+                print("loop_num: {}, NN_value: {:>5.2f}".format(best_loop_num_value, best_NN_value), \
+                      end="")
+                    
+            if best_loop_num_value > 0:
+                if best_loop_num_index == best_NN_index:
+                    None
                     if if_disp:
-                        print("loop_num: " + str(best_loop_num_value) + \
-                              ", NN_value: " + str(best_NN_value) + \
-                              ", so chose loop_num one at turn: " + str(self.turn_count))
+                        print(", and they chose the same candidate", end="")
                 else:
-                    if (not(best_index == best_loop_num_index)) and (if_disp) and (best_loop_num_value > 0):
-                        print("loop_num: " + str(best_loop_num_value) + \
-                              ", NN_value: " + str(best_NN_value) + \
-                              ", so chose NN value one at turn: " + str(self.turn_count))
+                    if best_loop_num_value > 9:
+                        best_index = best_loop_num_index
+                        if if_disp:
+                            print(", so chose loop_num", end="")
+                    else:
+                        if best_loop_num_value > best_NN_value:
+                            best_index = best_loop_num_index
+                            if if_disp:
+                                print(", so chose loop_num", end="")
+                        else:
+                            if if_disp:
+                                print(", so chose NN_value", end="")
+            
+            if if_disp:
+                print(" at turn: " + str(self.turn_count))
                 
             if if_disp:
                 dots_transition.append(self.candidates[best_index])
@@ -248,6 +259,6 @@ class puyo_env:
             if terminated:
                 break
         
-        return max_reward + sum_reward, dots_transition
+        # return max_reward + sum_reward, dots_transition
         # return max_reward, dots_transition
-        # return sum_reward, dots_transition
+        return sum_reward, dots_transition
