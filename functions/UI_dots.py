@@ -19,7 +19,7 @@ def animate_dots_no_motion(dots_kind_matrix_3D, fig=None, ax=None, mode='subplot
     
     dots_kind_matrix = dots_kind_matrix_3D[0]
     
-    size = 172 * 1 # Set scatter size. 
+    size = 172 * 0.8 # Set scatter size. 
 
     # if fig is None:
     #     fig = plt.figure(figsize=(6.4,4.8))
@@ -53,7 +53,7 @@ def animate_dots_no_motion(dots_kind_matrix_3D, fig=None, ax=None, mode='subplot
             
             if connection_list_horizontal[0].size > 0:
                 container.append(\
-                    ax.plot(connection_list_horizontal, connection_list_vertical, c=colors[plotting_color_index])\
+                    ax.plot(connection_list_horizontal, connection_list_vertical, c=colors[plotting_color_index], lw=4)\
                     )
         
         container.append(\
@@ -79,7 +79,7 @@ def animate_dots_no_motion(dots_kind_matrix_3D, fig=None, ax=None, mode='subplot
 
 def scat_dots_multi_subplot(fig, ax, dots_kind_matrix_3D, scat_dots):
     subplot_num = len(dots_kind_matrix_3D)
-    subplot_col_num = 5
+    subplot_col_num = 6
     subplot_row_num = int( np.ceil(subplot_num / subplot_col_num) )
     
     if fig is None:

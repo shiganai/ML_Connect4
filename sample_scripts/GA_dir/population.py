@@ -104,11 +104,17 @@ class Population:
                                    )
                     prob = torch.tensor(prob, dtype=torch.float32, device=device)
                     
-                    noise = np.random.rand(\
+                    base_noise = np.random.randint(0,2,\
+                                   size= (model.all_layers[layer_index].weight.data.size()[2], \
+                                          model.all_layers[layer_index].weight.data.size()[3]) \
+                                   )
+                                   
+                    small_noise = np.random.rand(\
                                    model.all_layers[layer_index].weight.data.size()[2], \
                                    model.all_layers[layer_index].weight.data.size()[3] \
                                    )
-                    noise = (2*noise - 1) * 1.1
+                        
+                    noise = (base_noise*2 - 1) + (small_noise * 2 - 1) * 0.1
                     noise = torch.tensor(noise, dtype=torch.float32, device=device)
                     
                     model.all_layers[layer_index].weight.data[0][0][prob < mutation_prob] = \

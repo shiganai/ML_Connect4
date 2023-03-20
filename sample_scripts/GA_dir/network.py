@@ -7,8 +7,8 @@ import torch.nn.functional as F
 
 import numpy as np
 from config import elitism_pct, mutation_prob, weights_mutate_power, device
-n_squre = 2**7
-# n_squre = 300
+# n_squre = 2**7
+n_squre = 200
 
 class Network(nn.Module):
 
