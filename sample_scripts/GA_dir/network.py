@@ -26,7 +26,7 @@ class Network(nn.Module):
         
         self.layer1 = nn.Linear(linear_input_size, n_squre)
         self.layer2 = nn.Linear(n_squre, n_squre)
-        self.layer3 = nn.Linear(n_squre, 1)
+        self.layer3 = nn.Linear(n_squre, 4) # 4-1=3 連鎖までの期待値を返すイメージ
         
         self.all_layers = [self.layer1, self.layer2, self.layer3]
         for ii in self.all_layers:
@@ -44,6 +44,8 @@ class Network(nn.Module):
         x = self.layer2(x)
         x = F.relu(x)
         x = self.layer3(x)
+        x = F.softmax(x)
+        x = x.max(0)[1].view(1, 1) # 一番大きい値のインデックスを取り出す。
         return x
     
     def generate_3d_color_mat(self, dots_kind_matrix):

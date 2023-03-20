@@ -55,10 +55,9 @@ while True:
         print("*".format(iteration), end="")
     print()
 
+    print(population.fitnesses)
     best_model_idx = population.fitnesses.argmax()
     best_model = population.models[best_model_idx]
-    fitnesses = population.fitnesses[best_model_idx]
-    print(fitnesses)
     score = 0
     lines = 0
     for i in range(1):

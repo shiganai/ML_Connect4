@@ -33,7 +33,7 @@ class puyo_env:
         
         self.action_space = self.action_space(self)
         
-        self.turn_count_threshold = -1 + 5 * 6
+        self.turn_count_threshold = -1 + 5 * 5
     
 # =============================================================================
 #     copying openaigym class
@@ -178,7 +178,7 @@ class puyo_env:
                 if np.all(evaled_candidate[-2,:]==0):
                     sum_value = model(evaled_candidate)
                     sum_value = sum_value.to('cpu').detach().numpy().copy()
-                    sum_value = sum_value[0]
+                    sum_value = sum_value[0][0]
                 else:
                     sum_value = np.NINF
 # =============================================================================

@@ -11,7 +11,7 @@ colors.extend(colors_exist*repeat_num)
 connected_threshold_default = 4
 
 connected_threshold_default = 4
-num_horizontal_default = 6
+num_horizontal_default = 5
 num_vertical_default = 12
 num_kind_default = 4
 num_dummy_kind_default = 2
