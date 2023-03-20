@@ -33,7 +33,7 @@ class puyo_env:
         
         self.action_space = self.action_space(self)
         
-        self.turn_count_threshold = -1 + 4 * 5
+        self.turn_count_threshold = -1 + 5 * 6
     
 # =============================================================================
 #     copying openaigym class

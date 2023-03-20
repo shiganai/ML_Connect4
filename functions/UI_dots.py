@@ -79,7 +79,7 @@ def animate_dots_no_motion(dots_kind_matrix_3D, fig=None, ax=None, mode='subplot
 
 def scat_dots_multi_subplot(fig, ax, dots_kind_matrix_3D, scat_dots):
     subplot_num = len(dots_kind_matrix_3D)
-    subplot_col_num = 4
+    subplot_col_num = 5
     subplot_row_num = int( np.ceil(subplot_num / subplot_col_num) )
     
     if fig is None:
