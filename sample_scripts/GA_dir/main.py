@@ -27,17 +27,15 @@ def preview_ai(env, model):
 
 def eval_network(env, model):
     all_scores = []
-    for ii in range(4):
+    for ii in range(2):
         env.reset()
         score, _ = env.play_one_game(model)
         all_scores.append(score)
     mean_score = np.array(all_scores).mean()
-    if mean_score>30:
-        print(all_scores)
     return mean_score
     
 
-pop_size = 50
+pop_size = 100
 population = Population(env=env, size=pop_size)
 score = 0
 lines = 0

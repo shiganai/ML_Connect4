@@ -33,7 +33,7 @@ class puyo_env:
         
         self.action_space = self.action_space(self)
         
-        self.turn_count_threshold = -1 + 5 * 5
+        self.turn_count_threshold = -1 + 5 * 6
     
 # =============================================================================
 #     copying openaigym class
@@ -178,7 +178,7 @@ class puyo_env:
                 if np.all(evaled_candidate[-2,:]==0):
                     sum_value = model(evaled_candidate)
                     sum_value = sum_value.to('cpu').detach().numpy().copy()
-                    sum_value = sum_value[0][0]
+                    sum_value = sum_value[0]
                 else:
                     sum_value = np.NINF
 # =============================================================================
@@ -205,47 +205,81 @@ class puyo_env:
             else:
                 best_NN_index = best_NN_index[0]
             
-            best_index = best_NN_index
+            best_index = best_NN_index # デフォルトで NN_value の判断を採用
+            is_NN_value_chosen = True
             
             # 想定される連鎖数が最も大きいものを特定
             best_loop_num_value = np.array(self.candidates_loop_num).max()
             best_loop_num_index = np.where(self.candidates_loop_num == best_loop_num_value)[0]
             
+            is_best_loop_num_index_chosen_randomly = False
             if len(best_loop_num_index) > 1:
-                best_loop_num_index_best_NN_index = NN_values[best_loop_num_index].argmax()
+                # たまにNN_valueまで一緒の時がある
+                NN_values_at_bestLN = NN_values[best_loop_num_index]
+                NN_values_max_value_at_bestLN = NN_values_at_bestLN.max()
+                # best_loop_num_index 内での NN_value が最大値の位置を把握
+                best_loop_num_index_best_NN_index = np.where(NN_values_at_bestLN == NN_values_max_value_at_bestLN)[0]
+                if len(best_loop_num_index_best_NN_index) > 1: # NN_valueまで一緒の場合
+                    # ランダムに選ぶ
+                    best_loop_num_index_best_NN_index = \
+                        best_loop_num_index_best_NN_index[np.random.randint(0, len(best_loop_num_index_best_NN_index))]
+                    
+                    is_best_loop_num_index_chosen_randomly = True
+                else:
+                    best_loop_num_index_best_NN_index = best_loop_num_index_best_NN_index[0]
+                
+                # 最後に best_loop_num_index の中から best_loop_num_index_best_NN_index の位置を取得する
                 best_loop_num_index = best_loop_num_index[best_loop_num_index_best_NN_index]
-                # best_loop_num_index = np.random.randint(0, len(best_loop_num_index))
                 
             else:
                 best_loop_num_index = best_loop_num_index[0]
-            
+                
             if if_disp:
-                print("loop_num: {}, NN_value: {:>5.2f}".format(best_loop_num_value, best_NN_value), \
+                print("At turn: {:>3}, loop_num: {:>3}, NN_value: {:>5.2f}"\
+                      .format(self.turn_count, best_loop_num_value, best_NN_value), \
                       end="")
                     
-            if best_loop_num_value > 0:
-                if best_loop_num_index == best_NN_index:
-                    None
+            if best_loop_num_value > 0: # 連鎖がある場合
+                if best_loop_num_index == best_NN_index: # 2つの選択結果が同じだった場合
+                    is_NN_value_chosen = False
                     if if_disp:
-                        print(", and they chose the same candidate", end="")
+                        print(", and same candidate", end="")
                 else:
-                    if best_loop_num_value > 9:
+                    if best_loop_num_value > 9: # 10連鎖以上だったら NN_value 関係なく打つ
                         best_index = best_loop_num_index
+                        is_NN_value_chosen = False
                         if if_disp:
                             print(", so chose loop_num", end="")
                     else:
-                        if best_loop_num_value > best_NN_value:
+                        if best_loop_num_value > best_NN_value: # 確定連鎖数のほうが大きかったらもう打つ
                             best_index = best_loop_num_index
+                            is_NN_value_chosen = False
                             if if_disp:
                                 print(", so chose loop_num", end="")
-                        else:
+                        else: # NN_valueの期待値が大きいなら次の2ドットに期待. デフォルトで NN_valueを選んでいるから結果の表示以外何もしない
                             if if_disp:
                                 print(", so chose NN_value", end="")
+                
+                if if_disp:
+                    print(", chosen loop_num was {}".format(self.candidates_loop_num[best_index]), end="")
+                
+                if (self.candidates_loop_num[best_index] == best_loop_num_value) \
+                    and (is_NN_value_chosen): # 起こす連鎖数が同じなのに NN_value が選ばれた場合
+                    if is_best_loop_num_index_chosen_randomly:
+                        # 最高確定連鎖数 と 最高NN_value を持つケースが2つ以上存在して、
+                        # 最高確定連鎖数 のインデックスがランダムに選ばれて、
+                        # 最高NN_value のインデックスもランダムに選ばれて、
+                        # それが一致しない場合
+                        if if_disp:
+                            print()
+                            print("best_loop_num_index was chosen randomly because both loop_num and NN_value are same", \
+                                  end="")
+                    else:
+                        # なぜ起きるか不明. 要デバック状況
+                        raise Exception('Undefined case')
             
             if if_disp:
-                print(" at turn: " + str(self.turn_count))
-                
-            if if_disp:
+                print()
                 dots_transition.append(self.candidates[best_index])
                 
             observation, reward, terminated, truncated, info = self.step(best_index)
@@ -259,6 +293,6 @@ class puyo_env:
             if terminated:
                 break
         
-        # return max_reward + sum_reward, dots_transition
+        return max_reward + sum_reward, dots_transition
         # return max_reward, dots_transition
-        return sum_reward, dots_transition
+        # return sum_reward, dots_transition
