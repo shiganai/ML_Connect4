@@ -176,29 +176,9 @@ class puyo_env:
         title_for_dots_transition_3D_list = []
         
         while True:
-            NN_values = []
-            for evaled_index in range(self.candidates_dots_result.shape[2]):
-                evaled_candidate = self.candidates_dots_result[:,:,evaled_index]
-                if np.all(evaled_candidate[-2,:]==0):
-                    sum_value = model(evaled_candidate)
-                    sum_value = sum_value.to('cpu').detach().numpy().copy()
-                    sum_value = sum_value[0]
-                else:
-                    sum_value = np.NINF
-# =============================================================================
-#                 sum_value = 0
-#                 for ii in range(self.num_kind):
-#                     each_dot_mat = evaled_candidate == ii+1
-#                     each_dot_mat = each_dot_mat * 2.0
-#                     each_dot_mat[each_dot_mat==0] = 1.0
-#                     each_dot_mat[evaled_candidate==0] = 0.0
-#                     state = torch.tensor(each_dot_mat, dtype=torch.float32, device=device).unsqueeze(0)
-#                     current_value = model(state)
-#                     current_value = current_value.to('cpu').detach().numpy().copy()
-#                     sum_value += current_value
-# =============================================================================
-                NN_values.append(sum_value)
-                
+            NN_values = model(self.candidates_dots_result).to('cpu').detach().numpy().copy().flatten()
+            will_be_terminated = np.any(self.candidates_dots_result[-2,:,:]!=0, axis=0)
+            NN_values[will_be_terminated] = np.NINF
             
             NN_values = np.array(NN_values)
             # NNの計算値が最も大きいものを特定
@@ -336,8 +316,9 @@ class puyo_env:
                         dots_transition_3D_list[-1] = dots_transition_current_turn
                     else:
                         dots_transition_3D_list.append(dots_transition_current_turn)
-                        # 次連鎖しない場合用に空を挿入しておく
-                        dots_transition_3D_list.append([])
+                    
+                    # 次連鎖しない場合用に空を挿入しておく
+                    dots_transition_3D_list.append([])
                     
             observation, reward, terminated, truncated, info = self.step(best_index)
                 
@@ -350,6 +331,10 @@ class puyo_env:
             if terminated:
                 break
         
+        # 連鎖直後に終わると dots_transition_3D_list の末尾に [] が残るから、これを消しておく.
+        if dots_transition_3D_list[-1]==[]:
+            dots_transition_3D_list = dots_transition_3D_list[0:-1]
+            
         return max_reward + sum_reward, dots_transition_only_result, dots_transition_3D_list, title_for_dots_transition_3D_list
         # return max_reward, dots_transition
         # return sum_reward, dots_transition

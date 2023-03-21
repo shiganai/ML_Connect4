@@ -387,15 +387,10 @@ def delete_and_fall_dots_to_the_end(dots_kind_matrix_3D, \
         loop_num[remaining_index] = loop_num[remaining_index] + 1
         
         # 複製してから delete_connected_dots
-        # dots_kind_matrix_3D_deleted = np.copy(dots_kind_matrix_3D_remaining)
         dots_kind_matrix_3D_deleted = delete_connected_dots(np.copy(dots_kind_matrix_3D_remaining), connected_dots_list_3D)
-        for index_based_on_remaining in range(remaining_index.shape[0]):
-            org = dots_kind_matrix_3D_remaining[:,:,index_based_on_remaining]
-            deleted = dots_kind_matrix_3D_deleted[:,:,index_based_on_remaining]
         
         # 複製してから fall_dots_once
-        dots_kind_matrix_3D_falled = np.copy(dots_kind_matrix_3D_deleted)
-        dots_kind_matrix_3D_falled = fall_dots_once(dots_kind_matrix_3D_falled)
+        dots_kind_matrix_3D_falled = fall_dots_once(np.copy(dots_kind_matrix_3D_deleted))
         
         if not(if_return_only_result):
             for index_based_on_remaining in range(remaining_index.shape[0]):
