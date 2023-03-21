@@ -158,7 +158,8 @@ def GUI_to_play():
             self.next_2dots_previous = self.next_2dots
             
             self.dots_kind_matrix = self.dots_kind_matrix_candidate
-            dots_transition, loop_num = eg.delete_and_fall_dots_to_the_end(self.dots_kind_matrix, 4)
+            dots_kind_matrix_3D_result, loop_num, dots_transition = \
+                eg.delete_and_fall_dots_to_the_end(self.dots_kind_matrix, if_return_only_result=False)
             
             for frame_index in range(len(dots_transition)):
                 if not(frame_index == 0):

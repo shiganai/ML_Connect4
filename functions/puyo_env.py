@@ -52,7 +52,7 @@ class puyo_env:
         return state, info
         
     def step(self, action):
-        self.dots_kind_matrix = self.candidates[action]
+        self.dots_kind_matrix = self.candidates[:,:,action]
         loop_num = self.drop_candidate()
         
         ########## refresh dots
@@ -135,27 +135,26 @@ class puyo_env:
         return dots_kind_matrix.flatten()
     
     def list_candidate(self):
-        self.candidates = eg.get_candidate(\
+        self.candidates = eg.get_candidate_3D(\
                               dots_kind_matrix=self.dots_kind_matrix, \
                               next_2dots=self.next_2dots[:,0], \
-                              is_ignore_same=True)
-        if not(len(self.candidates) == self.num_candidate):
+                              if_list_all=True)
+        if not(self.candidates.shape[2] == self.num_candidate):
             raise Exception("not(len(self.candidates) == self.num_candidate)")
-            
-        self.candidates_dots_result = []
-        self.candidates_loop_num = []
-        for candidate in self.candidates:
-            dots_transition, loop_num = eg.delete_and_fall_dots_to_the_end(candidate, 4)
-            self.candidates_dots_result.append(dots_transition[-1])
-            self.candidates_loop_num.append(loop_num)
+        
+        dots_kind_matrix_3D_result, loop_num, dots_transition = \
+            eg.delete_and_fall_dots_to_the_end(self.candidates, if_return_only_result=True)
+        self.candidates_dots_result = dots_kind_matrix_3D_result
+        self.candidates_loop_num = loop_num
         
         
     def drop_candidate(self):
-        dots_transition, loop_num = eg.delete_and_fall_dots_to_the_end(self.dots_kind_matrix, 4)
+        dots_kind_matrix_3D_result, loop_num, dots_transition = \
+            eg.delete_and_fall_dots_to_the_end(self.dots_kind_matrix, if_return_only_result=True)
         
-        self.dots_kind_matrix = dots_transition[-1]
+        self.dots_kind_matrix = dots_kind_matrix_3D_result[:,:,0]
         
-        return loop_num
+        return loop_num[0]
     
     def get_terminated(self):
         terminated = True
@@ -170,11 +169,16 @@ class puyo_env:
         max_reward = 0
         step_count = 0
         
-        dots_transition = []
+        dots_transition_only_result = None
+        # dots_transition_3D_list[0]でアクセスできるように初期化
+        dots_transition_3D_list = [[]]
+        # ラベル付けように追加
+        title_for_dots_transition_3D_list = []
         
         while True:
             NN_values = []
-            for evaled_candidate in self.candidates_dots_result:
+            for evaled_index in range(self.candidates_dots_result.shape[2]):
+                evaled_candidate = self.candidates_dots_result[:,:,evaled_index]
                 if np.all(evaled_candidate[-2,:]==0):
                     sum_value = model(evaled_candidate)
                     sum_value = sum_value.to('cpu').detach().numpy().copy()
@@ -235,11 +239,13 @@ class puyo_env:
                 best_loop_num_index = best_loop_num_index[0]
                 
             if if_disp:
-                print("At turn: {:>3}, loop_num: {:>3}, NN_value: {:>5.2f}"\
+                print("At turn: {:>3}, best_loop_num: {:>3}, best_NN_value: {:>5.2f}"\
                       .format(self.turn_count, best_loop_num_value, best_NN_value), \
                       end="")
                     
-            if best_loop_num_value > 0: # 連鎖がある場合
+            if best_loop_num_value < 1: # 連鎖がない場合
+                chosen_loop_num = self.candidates_loop_num[best_index]
+            else: # 連鎖がある場合は NN_value と秤にかける
                 if best_loop_num_index == best_NN_index: # 2つの選択結果が同じだった場合
                     is_NN_value_chosen = False
                     if if_disp:
@@ -259,6 +265,8 @@ class puyo_env:
                         else: # NN_valueの期待値が大きいなら次の2ドットに期待. デフォルトで NN_valueを選んでいるから結果の表示以外何もしない
                             if if_disp:
                                 print(", so chose NN_value", end="")
+                
+                chosen_loop_num = self.candidates_loop_num[best_index]
                 
                 if if_disp:
                     print(", chosen loop_num was {}".format(self.candidates_loop_num[best_index]), end="")
@@ -280,8 +288,57 @@ class puyo_env:
             
             if if_disp:
                 print()
-                dots_transition.append(self.candidates[best_index])
                 
+            
+                _, _, dots_transition_current_turn = \
+                    eg.delete_and_fall_dots_to_the_end(\
+                                                       self.candidates[:,:,best_index], \
+                                                       if_return_only_result=False)
+                        
+                # 3Dで入力したとき用に dots_transition_current_turn は [?x?x?, ?x?x?] の形で帰ってくるから、
+                # 最初の1つ目を取得. というか len(dots_transition_current_turn) = 1 のはず.
+                dots_transition_current_turn = dots_transition_current_turn[0]
+                        
+                if dots_transition_only_result is None:
+                    dots_transition_only_result = self.candidates[:,:,best_index,np.newaxis]
+                else:
+                    dots_transition_only_result = np.concatenate([\
+                                                      dots_transition_only_result, \
+                                                      self.candidates[:,:,best_index,np.newaxis],\
+                                                      ], axis=2)
+                
+                if chosen_loop_num < 1: # 連鎖がない場合はdots_transition_3D_listの最後の要素の最後に追加する
+                    # プロット用タイトルにはターン数だけ入力
+                    title_for_dots_transition_3D_list.append("turn: {}".format(self.turn_count))
+                    if dots_transition_3D_list[-1] == []: # まずは初期化
+                        dots_transition_3D_list[-1] = self.candidates[:,:,best_index, np.newaxis]
+                    else:
+                        # もし十分連鎖しない盤面が長くなった場合は改行する.
+                        if dots_transition_3D_list[-1].shape[2] > 6:
+                            dots_transition_3D_list.append(self.candidates[:,:,best_index, np.newaxis])
+                        else:
+                            dots_transition_3D_list[-1] = \
+                                np.concatenate([\
+                                                dots_transition_3D_list[-1],\
+                                                self.candidates[:,:,best_index, np.newaxis],\
+                                                ],axis=2)
+                else: # 連鎖がある場合
+                    # タイトルは 初めの2つに turn: ?, chosen loop_num: ? を表示させた後、
+                    # 空白を繰り返す.
+                    title_for_dots_transition_current_turn = [\
+                                                              "turn: {}".format(self.turn_count), \
+                                                              "chosen loop_num: {}".format(chosen_loop_num),\
+                                                              ]
+                    title_for_dots_transition_current_turn.extend([""]*(dots_transition_current_turn.shape[2]-2))
+                    title_for_dots_transition_3D_list.extend(title_for_dots_transition_current_turn)
+                    if dots_transition_3D_list[-1] == []:
+                        # すでに初期化されていた場合. 2回連続で連鎖すると起きる
+                        dots_transition_3D_list[-1] = dots_transition_current_turn
+                    else:
+                        dots_transition_3D_list.append(dots_transition_current_turn)
+                        # 次連鎖しない場合用に空を挿入しておく
+                        dots_transition_3D_list.append([])
+                    
             observation, reward, terminated, truncated, info = self.step(best_index)
                 
             sum_reward += reward
@@ -293,6 +350,6 @@ class puyo_env:
             if terminated:
                 break
         
-        return max_reward + sum_reward, dots_transition
+        return max_reward + sum_reward, dots_transition_only_result, dots_transition_3D_list, title_for_dots_transition_3D_list
         # return max_reward, dots_transition
         # return sum_reward, dots_transition

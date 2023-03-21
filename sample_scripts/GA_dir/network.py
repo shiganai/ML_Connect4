@@ -50,8 +50,6 @@ class Network(nn.Module):
         # dots_kind_matrixはnumpy.array
         
         color_mat_3d = self.generate_linear_input(dots_kind_matrix)
-        color_mat_3d = torch.tensor(color_mat_3d, dtype=torch.float32, device=device).unsqueeze(0)
-        color_mat_3d = torch.flatten(color_mat_3d)
         
         x = self.layer1(color_mat_3d)
         x = F.leaky_relu(input=x,negative_slope=0.2)
@@ -62,6 +60,7 @@ class Network(nn.Module):
     
     def generate_linear_input(self, dots_kind_matrix):
         dots_kind_matrix = dots_kind_matrix[0:-2,:] # trimming
+        # TODO: Tensorの1次元目を増やすことで、forループを回避できないか検討
         for ii in range(self.num_kind):
             each_color_mat = (dots_kind_matrix == ii + 1) * 1.0
             empty = (dots_kind_matrix == 0) * 1.0

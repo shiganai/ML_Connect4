@@ -18,8 +18,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def preview_ai(env, model):
     env.reset()
-    score, dots_transition = env.play_one_game(model, if_disp=True)
-    ui.animate_dots_no_motion(dots_transition)
+    score, dots_transition_only_result, dots_transition_3D_list, title_for_dots_transition_3D_list = \
+            env.play_one_game(model, if_disp=True)
+    ui.scat_dots_by_procedure(dots_transition_3D_list, title_for_dots_transition_3D_list)
     plt.show(block=False)
     None
     
@@ -29,7 +30,7 @@ def eval_network(env, model):
     all_scores = []
     for ii in range(4):
         env.reset()
-        score, _ = env.play_one_game(model)
+        score, _, _, _ = env.play_one_game(model)
         all_scores.append(score)
     mean_score = np.array(all_scores).mean()
     return mean_score
