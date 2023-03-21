@@ -11,6 +11,8 @@ from functions import puyo_env
 from functions import UI_dots as ui
 if_disp_dots=False
 
+import time
+
 env = puyo_env.puyo_env(num_next_2dots=1, num_kind=4)
 
 # if gpu is to be used
@@ -48,11 +50,13 @@ for i in range(1):
 iteration = 0
 while True:
     iteration += 1
+    start = time.time()
     print("{} : ".format(iteration), end="")
     for i in range(pop_size):
         population.fitnesses[i] = eval_network(env, population.models[i])
         print("*".format(iteration), end="")
     print()
+    print("time: {}".format(time.time()-start))
 
     print(population.fitnesses)
     best_model_idx = population.fitnesses.argmax()
