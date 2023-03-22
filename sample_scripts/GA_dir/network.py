@@ -10,10 +10,10 @@ from config import elitism_pct, mutation_prob, weights_mutate_power, device
 # n_squre = 2**7
 n_squre = 200
 
-class Network(nn.Module):
+class NN_direct_LN_exp(nn.Module):
 
     def __init__(self, env):
-        super(Network, self).__init__()
+        super(NN_direct_LN_exp, self).__init__()
         
         self.num_kind = env.num_kind
         
