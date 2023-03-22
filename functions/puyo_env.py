@@ -44,15 +44,17 @@ class puyo_env:
 # =============================================================================
 # =============================================================================
 
-    def reset(self):
+    def reset(self, to_use_result_till_max_depth):
         # print("reset of puyo_env is called")
         
         # self.step()の処理を is_play_one_game_called のフラグによって管理しているからこの初期化は重要
         self.is_play_one_game_called = False
+        self.to_use_result_till_max_depth = to_use_result_till_max_depth
         
         self.turn_count = 0 # temporary count for stop at some count
         self.termination_determined = False
-        self.result_till_max_depth = None # メモリ食うけど、落とす処理、消す処理が思いから残しておく.
+        if to_use_result_till_max_depth:
+            self.result_till_max_depth = None # メモリ食うけど、落とす処理、消す処理が思いから残しておく.
         
         self.reset_kind_matrix()
         self.generate_next_2dots()
@@ -72,14 +74,20 @@ class puyo_env:
         
         # play_one_game から呼ばれた時はすでにデータが用意されている.
         if self.is_play_one_game_called:
-            # デバック用に参照コピー
-            result_till_max_depth = self.result_till_max_depth
-            
-            # 引継ぎデータから連鎖数を取得
-            loop_num = self.get_loop_num(action_single_depth)
-            
-            # 選んだ action に対応する落とした結果の盤面を引継ぎデータを参照して更新
-            self.dots_kind_matrix = result_till_max_depth[0][0][:,:,action_single_depth]
+            # result_till_max_depth を使ったほうが早いか遅いか比較用分岐
+            if self.to_use_result_till_max_depth:
+                # デバック用に参照コピー
+                result_till_max_depth = self.result_till_max_depth
+                
+                # 引継ぎデータから連鎖数を取得
+                loop_num = self.get_loop_num_from_result_till_max_depth(action_single_depth)
+                
+                # 選んだ action に対応する落とした結果の盤面を引継ぎデータを参照して更新
+                self.dots_kind_matrix = result_till_max_depth[0][0][:,:,action_single_depth]
+            else:
+                # result_till_max_depth を使わないときは選んだ action に対して落とす演算を行う
+                self.dots_kind_matrix = self.candidate_single_depth[:,:,action_single_depth]
+                loop_num = self.drop_candidate()
             
             # 引継ぎデータのトリミングを実行
             self.trimming_take_over_info(action_single_depth)
@@ -205,7 +213,8 @@ class puyo_env:
                 
             have_read_depth = 0
             candidate_max_depth = self.dots_kind_matrix[:,:,np.newaxis]
-            result_till_max_depth = []
+            if self.to_use_result_till_max_depth:
+                result_till_max_depth = []
             
             # 確定連鎖数推移(loop_num_till_max_depth)と
             # どの盤面を選んだか(procedure_till_max_depth)は
@@ -220,7 +229,8 @@ class puyo_env:
             candidate_max_depth = self.candidate_max_depth
             loop_num_till_max_depth = self.loop_num_till_max_depth
             procedure_till_max_depth = self.procedure_till_max_depth
-            result_till_max_depth = self.result_till_max_depth
+            if self.to_use_result_till_max_depth:
+                result_till_max_depth = self.result_till_max_depth
             
             have_read_depth = self.num_next_2dots - 1
         
@@ -309,9 +319,9 @@ class puyo_env:
                                     ], axis= 1)
                 
                 
-            
-            # トリミングする前に result_till_max_depth に落とした盤面と結果, それまでの手順を保存しておく
-            result_till_max_depth.append([candidate_max_depth, loop_num, procedure_till_max_depth])
+            if self.to_use_result_till_max_depth:
+                # トリミングする前に result_till_max_depth に落とした盤面と結果, それまでの手順を保存しておく
+                result_till_max_depth.append([candidate_max_depth, loop_num, procedure_till_max_depth])
             
             # もしゲームオーバーの物があるなら消さなきゃいけないデータ: 盤面, それまでの連鎖数経緯, 派生元
             # 基本的に duplicate したやつ
@@ -331,7 +341,6 @@ class puyo_env:
         
         # 次の先読み用に self を更新
         self.candidate_max_depth = candidate_max_depth
-        self.result_till_max_depth = result_till_max_depth
         self.loop_num_till_max_depth = loop_num_till_max_depth
         self.procedure_till_max_depth = procedure_till_max_depth
         self.loop_num_till_max_depth_abst = \
@@ -339,6 +348,8 @@ class puyo_env:
                             loop_num_till_max_depth.max(axis=1)[:,np.newaxis],\
                             loop_num_till_max_depth.argmax(axis=1)[:,np.newaxis],
                             ], axis=1)
+        if self.to_use_result_till_max_depth:
+            self.result_till_max_depth = result_till_max_depth
         return
     
     
@@ -346,7 +357,7 @@ class puyo_env:
 # =============================================================================
 # =============================================================================
 # =============================================================================
-# # # # taken over data definition: get_loop_num, trimming_take_over_info
+# # # # taken over data definition: get_loop_num_from_result_till_max_depth, trimming_take_over_info
 # =============================================================================
 # =============================================================================
 # =============================================================================
@@ -354,7 +365,7 @@ class puyo_env:
     
     
     
-    def get_loop_num(self, action_single_depth):
+    def get_loop_num_from_result_till_max_depth(self, action_single_depth):
         
         # デバック用に参照コピー
         result_till_max_depth = self.result_till_max_depth
@@ -370,34 +381,37 @@ class puyo_env:
         candidate_max_depth = self.candidate_max_depth
         loop_num_till_max_depth = self.loop_num_till_max_depth
         procedure_till_max_depth = self.procedure_till_max_depth
-        result_till_max_depth = self.result_till_max_depth
         
         # 今回の一手と同じ一手を持つ candidate の candidate_max_depth に対するインデックスを取得
         taken_over_candidate_index = np.where(procedure_till_max_depth[:,0] == action_single_depth)[0]
         # candidate_max_depth は同じ一手のモノだけを引き継ぐ
         candidate_max_depth = candidate_max_depth[:,:, taken_over_candidate_index]
-        # result_till_max_depth も削る. for で各層ごとに処理する必要があるから, 空のリストで初期化しちゃう
-        result_till_max_depth_tmp = []
-        for reading_depth_index in range(1, len(result_till_max_depth)):
-            # トリミングする読み段階の落とした結果とそこまでの手順を抽出
-            trimming_dots_result = result_till_max_depth[reading_depth_index][0]
-            trimming_loop_num = result_till_max_depth[reading_depth_index][1]
-            trimming_procedure = result_till_max_depth[reading_depth_index][2]
-            
-            
-            # トリミングするインデックスを決定
-            # 手順書の初めが一致してるものを残す
-            trimming_index = np.where( trimming_procedure[:,0] == action_single_depth )[0]
-            # 盤面はそのまま, 手順は最初の手順を削る
-            trimming_dots_result = trimming_dots_result[:,:,trimming_index]
-            trimming_loop_num = trimming_loop_num[trimming_index]
-            trimming_procedure = trimming_procedure[trimming_index,1:]
-            
-            # 新しい変数 result_till_max_depth_tmp に保存しておく
-            result_till_max_depth_tmp.append([trimming_dots_result, trimming_loop_num, trimming_procedure])
-            
-        # ループが終わったら result_till_max_depth を置換
-        result_till_max_depth = result_till_max_depth_tmp
+        
+        if self.to_use_result_till_max_depth:
+            result_till_max_depth = self.result_till_max_depth
+            # result_till_max_depth も削る. for で各層ごとに処理する必要があるから, 空のリストで初期化しちゃう
+            result_till_max_depth_tmp = []
+            for reading_depth_index in range(1, len(result_till_max_depth)):
+                # トリミングする読み段階の落とした結果とそこまでの手順を抽出
+                trimming_dots_result = result_till_max_depth[reading_depth_index][0]
+                trimming_loop_num = result_till_max_depth[reading_depth_index][1]
+                trimming_procedure = result_till_max_depth[reading_depth_index][2]
+                
+                
+                # トリミングするインデックスを決定
+                # 手順書の初めが一致してるものを残す
+                trimming_index = np.where( trimming_procedure[:,0] == action_single_depth )[0]
+                # 盤面はそのまま, 手順は最初の手順を削る
+                trimming_dots_result = trimming_dots_result[:,:,trimming_index]
+                trimming_loop_num = trimming_loop_num[trimming_index]
+                trimming_procedure = trimming_procedure[trimming_index,1:]
+                
+                # 新しい変数 result_till_max_depth_tmp に保存しておく
+                result_till_max_depth_tmp.append([trimming_dots_result, trimming_loop_num, trimming_procedure])
+                
+            # ループが終わったら result_till_max_depth を置換
+            result_till_max_depth = result_till_max_depth_tmp
+            self.result_till_max_depth = result_till_max_depth
             
         # loop_num_till_max_depth, procedure_till_max_depth は一段削って, 同じ一手のモノだけを引き継ぐ
         loop_num_till_max_depth = loop_num_till_max_depth[taken_over_candidate_index, 1:]
@@ -405,7 +419,6 @@ class puyo_env:
         
         # selfを更新しておく
         self.candidate_max_depth = candidate_max_depth
-        self.result_till_max_depth = result_till_max_depth
         self.loop_num_till_max_depth = loop_num_till_max_depth
         self.procedure_till_max_depth = procedure_till_max_depth
         
@@ -422,8 +435,8 @@ class puyo_env:
 # =============================================================================
 # =============================================================================
 
-    def play_one_game(self, model=None, if_disp=False):
-        self.reset()
+    def play_one_game(self, model=None, if_disp=False, to_use_result_till_max_depth=False):
+        self.reset(to_use_result_till_max_depth)
         self.is_play_one_game_called = True
         sum_reward = 0.1
         max_reward = 0
@@ -469,7 +482,7 @@ class puyo_env:
                     if if_disp:
                         print("    ###  ALL PATTERN WILL BE TERMINATED  ###  ",end="")
                         print("LN transition will be: ",end="")
-                        print(actions_and_loop_nums_till_terminated[0,:],end="")
+                        print(actions_and_loop_nums_till_terminated[1,:],end="")
                     
                 
                 action_single_depth = actions_and_loop_nums_till_terminated[0,0]
@@ -562,7 +575,7 @@ class puyo_env:
                                     print(", so chose loop_num", end="")
                             else: # NN_valueの期待値が大きいなら次の2ドットに期待. デフォルトで NN_valueを選んでいるから結果の表示以外何もしない
                                 if if_disp:
-                                    print(", so chose NN_value", end="")
+                                    print(", so chose NN", end="")
                     
                     if (loop_num_till_max_depth_abst[best_index,0] == best_loop_num_value) \
                         and (is_NN_value_chosen): # 起こす連鎖数が同じなのに NN_value が選ばれた場合
