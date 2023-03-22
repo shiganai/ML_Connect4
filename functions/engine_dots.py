@@ -347,7 +347,7 @@ def delete_and_fall_dots_to_the_end(dots_kind_matrix_3D, \
                                                                       dots_at_checking_index_falled,\
                                                                       ], axis=2)
     
-    loop_num = np.zeros(dots_kind_matrix_3D.shape[2])
+    loop_num = np.zeros(dots_kind_matrix_3D.shape[2], dtype=int)
     # dots_kind_matrix_3D に対応するインデックスの保存
     remaining_index = np.array(range(dots_kind_matrix_3D.shape[2]))
     dots_kind_matrix_3D_remaining = dots_kind_matrix_3D_result[:,:,remaining_index]
@@ -459,8 +459,8 @@ def get_candidate_3D_vertical(dots_kind_matrix, next_2dots):
 
 def get_candidate_3D_horizontal(dots_kind_matrix, next_2dots):
     num_vertical, num_horizontal, num_layer = get_base_dots_info(dots_kind_matrix)
-    candidate_3D = np.repeat( dots_kind_matrix[:,:,np.newaxis], num_horizontal-1, axis=2 )
     
+    candidate_3D = np.repeat( dots_kind_matrix[:,:,np.newaxis], num_horizontal-1, axis=2 )
     for horizontal_index in range(num_horizontal-1):
         candidate_3D[-2,horizontal_index,horizontal_index] = next_2dots[0]
         candidate_3D[-2,horizontal_index+1,horizontal_index] = next_2dots[1]

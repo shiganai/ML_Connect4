@@ -12,6 +12,9 @@ from functions import UI_dots as ui
 if_disp_dots=False
 
 import time
+from tqdm import tqdm
+
+from concurrent.futures import ProcessPoolExecutor
 
 env = puyo_env.puyo_env(num_next_2dots=1, num_kind=4)
 
@@ -52,6 +55,17 @@ while True:
     iteration += 1
     start = time.time()
     print("{} : ".format(iteration), end="")
+# # with tqdm(total=pop_size) as progress:
+#     with ProcessPoolExecutor(max_workers=int(os.cpu_count() / 2)) as executor:
+#         futures = []
+#         for i in range(pop_size):
+#             future = executor.submit(eval_network, env, population.models[i])
+#             # future.add_done_callback(lambda p: progress.update())
+#             futures.append(future)
+#         result = [f.result() for f in futures]
+#         # population.fitnesses[i] = eval_network(env, population.models[i])
+#         # print("*".format(iteration), end="")
+        
     for i in range(pop_size):
         population.fitnesses[i] = eval_network(env, population.models[i])
         print("*".format(iteration), end="")
