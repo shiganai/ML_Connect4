@@ -20,11 +20,15 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def preview_ai(env, model):
     # Note that env.reset is called inside of env.play_one_game
+    start = time.time()
+    
     score, dots_transition_only_result, dots_transition_3D_list, title_for_dots_transition_3D_list = \
             env.play_one_game(model, if_disp=True)
-    ui.scat_dots_by_procedure(dots_transition_3D_list, title_for_dots_transition_3D_list)
-    plt.show(block=False)
-    None
+    
+    print("time: {}".format(time.time()-start))
+    
+    # ui.scat_dots_by_procedure(dots_transition_3D_list, title_for_dots_transition_3D_list)
+    # plt.show(block=False)
     
     return score
 
@@ -46,25 +50,25 @@ for i in range(1):
     print("score: {}".format(score))
 
 
-iteration = 0
-while True:
-    iteration += 1
-    start = time.time()
-    print("{} : ".format(iteration), end="")
+# iteration = 0
+# while True:
+#     iteration += 1
+#     start = time.time()
+#     print("{} : ".format(iteration), end="")
         
-    for i in range(pop_size):
-        population.fitnesses[i] = eval_network(env, population.models[i])
-        print("*".format(iteration), end="")
-    print()
-    print("time: {}".format(time.time()-start))
+#     for i in range(pop_size):
+#         population.fitnesses[i] = eval_network(env, population.models[i])
+#         print("*".format(iteration), end="")
+#     print()
+#     print("time: {}".format(time.time()-start))
 
-    print(population.fitnesses)
-    best_model_idx = population.fitnesses.argmax()
-    best_model = population.models[best_model_idx]
-    score = 0
-    lines = 0
-    for i in range(1):
-        score = preview_ai(env, best_model)
-        print("score: {}".format(score))
+#     print(population.fitnesses)
+#     best_model_idx = population.fitnesses.argmax()
+#     best_model = population.models[best_model_idx]
+#     score = 0
+#     lines = 0
+#     for i in range(1):
+#         score = preview_ai(env, best_model)
+#         print("score: {}".format(score))
 
-    population = Population(env=env, size=pop_size, old_population=population)
+#     population = Population(env=env, size=pop_size, old_population=population)
