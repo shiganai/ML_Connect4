@@ -463,7 +463,7 @@ class puyo_env:
             action_single_depth = None
             
             if if_disp:
-                print("At turn: {:>3}".format(self.turn_count), end="")
+                print("At turn: {:>2}".format(self.turn_count), end="")
             
             if self.termination_determined:
                 # どうあがいてもゲームオーバーの時は...
@@ -545,14 +545,16 @@ class puyo_env:
                 best_loop_num_transition = loop_num_till_max_depth[best_loop_num_index,:]
                     
                 if if_disp:
+                    print("    ",end="")
+                    print("best_NN: {:>5.2f} with LN: "\
+                          .format(best_NN_value), \
+                          end="")
+                    print(loop_num_transition_by_NN, end="")
+                    print(", ",end="")
                     print("coming_max_LN: {:>2} with LN: "\
                           .format(best_loop_num_value), \
                           end="")
                     print(best_loop_num_transition, end="")
-                    print(", best_NN: {:>5.2f} with LN: "\
-                          .format(best_NN_value), \
-                          end="")
-                    print(loop_num_transition_by_NN, end="")
                         
                 if best_loop_num_value < 1: # 連鎖がない場合
                     None
@@ -575,7 +577,7 @@ class puyo_env:
                                     print(", so chose loop_num", end="")
                             else: # NN_valueの期待値が大きいなら次の2ドットに期待. デフォルトで NN_valueを選んでいるから結果の表示以外何もしない
                                 if if_disp:
-                                    print(", so chose NN", end="")
+                                    print(", BUT chose NN", end="")
                     
                     if (loop_num_till_max_depth_abst[best_index,0] == best_loop_num_value) \
                         and (is_NN_value_chosen): # 起こす連鎖数が同じなのに NN_value が選ばれた場合
@@ -614,29 +616,31 @@ class puyo_env:
                 # 3Dで入力したとき用に dots_transition_current_turn は [?x?x?, ?x?x?] の形で帰ってくるから、
                 # 最初の1つ目を取得. というか len(dots_transition_current_turn) = 1 のはず.
                 dots_transition_current_turn = dots_transition_current_turn[0]
-                        
+                
+                # 確定している2ドットを右上に追加して, adding_transition として保存
+                adding_transition = self.add_next_2dots_multi_depth_to_transition(candidate_single_depth[:,:,action_single_depth])
                 if dots_transition_only_result is None:
-                    dots_transition_only_result = candidate_single_depth[:,:,action_single_depth,np.newaxis]
+                    dots_transition_only_result = adding_transition
                 else:
                     dots_transition_only_result = np.concatenate([\
                                                       dots_transition_only_result, \
-                                                      candidate_single_depth[:,:,action_single_depth,np.newaxis],\
+                                                      adding_transition,\
                                                       ], axis=2)
                 
                 if chosen_loop_num < 1: # 連鎖がない場合はdots_transition_3D_listの最後の要素の最後に追加する
                     # プロット用タイトルにはターン数だけ入力
                     title_for_dots_transition_3D_list.append("turn: {}".format(self.turn_count))
                     if dots_transition_3D_list[-1] == []: # まずは初期化
-                        dots_transition_3D_list[-1] = candidate_single_depth[:,:,action_single_depth, np.newaxis]
+                        dots_transition_3D_list[-1] = adding_transition
                     else:
                         # もし十分連鎖しない盤面が長くなった場合は改行する.
-                        if dots_transition_3D_list[-1].shape[2] > 10:
-                            dots_transition_3D_list.append(candidate_single_depth[:,:,action_single_depth, np.newaxis])
+                        if dots_transition_3D_list[-1].shape[2] > 6:
+                            dots_transition_3D_list.append(adding_transition)
                         else:
                             dots_transition_3D_list[-1] = \
                                 np.concatenate([\
                                                 dots_transition_3D_list[-1],\
-                                                candidate_single_depth[:,:,action_single_depth, np.newaxis],\
+                                                adding_transition,\
                                                 ],axis=2)
                 else: # 連鎖がある場合
                     # タイトルは 初めの2つに turn: ?, chosen loop_num: ? を表示させた後、
@@ -645,13 +649,16 @@ class puyo_env:
                                                               "turn: {}".format(self.turn_count), \
                                                               "chosen LN: {}".format(chosen_loop_num),\
                                                               ]
-                    title_for_dots_transition_current_turn.extend([""]*(dots_transition_current_turn.shape[2]-2))
+                    title_for_dots_transition_current_turn.extend(["---------"]*(dots_transition_current_turn.shape[2]-2))
                     title_for_dots_transition_3D_list.extend(title_for_dots_transition_current_turn)
+                    
+                    # 確定している2ドットを右上に追加して, adding_transition として保存
+                    adding_transition = self.add_next_2dots_multi_depth_to_transition(dots_transition_current_turn)
                     if dots_transition_3D_list[-1] == []:
                         # すでに初期化されていた場合. 2回連続で連鎖すると起きる
-                        dots_transition_3D_list[-1] = dots_transition_current_turn
+                        dots_transition_3D_list[-1] = adding_transition
                     else:
-                        dots_transition_3D_list.append(dots_transition_current_turn)
+                        dots_transition_3D_list.append(adding_transition)
                     
                     # 次連鎖しない場合用に空を挿入しておく
                     dots_transition_3D_list.append([])
@@ -678,3 +685,27 @@ class puyo_env:
         return max_reward + sum_reward, dots_transition_only_result, dots_transition_3D_list, title_for_dots_transition_3D_list
         # return max_reward, dots_transition
         # return sum_reward, dots_transition
+        
+    def add_next_2dots_multi_depth_to_transition(self, dots_kind_matrix_3D):
+        dots_kind_matrix_3D = eg.convet_2D_dots_to_3D(dots_kind_matrix_3D)
+        
+        if self.num_next_2dots > 1:
+            # 2つ目以降の2ドットを追加する用の座標を追加
+            dots_kind_matrix_3D = np.concatenate([\
+                                                  dots_kind_matrix_3D, \
+                                                  np.zeros_like(dots_kind_matrix_3D[0:2,:,:]),\
+                                                  ], axis=0)
+            
+            num_layer = dots_kind_matrix_3D.shape[2]
+            horizontal_index = 0
+            next_2dots = self.next_2dots.transpose()
+            for depth_index in range(1, self.num_next_2dots):
+                # はじめの2ドットは飛ばして次のから右上に追加
+                horizontal_index -= 1
+                dots_kind_matrix_3D[-1, [horizontal_index*3 + 1, horizontal_index*3 + 2], :] = \
+                    np.repeat(\
+                              next_2dots[depth_index,:,np.newaxis],
+                              num_layer,
+                              axis=1)
+        
+        return dots_kind_matrix_3D

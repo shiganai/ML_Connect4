@@ -6,7 +6,8 @@ from functions import engine_dots as eg
 colors = eg.colors
 # colors_exist = eg.colors_exist
 
-size = 172 * 0.8 # Set scatter size. 
+size = 172 * 0.6 # Set scatter size. 
+linewidth = 4
 
 def print_dots(dots_kind_matrix_3D):
     dots_kind_matrix_3D = eg.convet_2D_dots_to_3D(dots_kind_matrix_3D)
@@ -36,7 +37,7 @@ def scat_dots_by_procedure(dots_kind_matrix_3D_list, title_for_dots_transition_3
         if subplot_col_num < dots_kind_matrix_3D_list[list_index].shape[2]:
             subplot_col_num = dots_kind_matrix_3D_list[list_index].shape[2]
     
-    fig = plt.figure(figsize=(6.4*subplot_col_num/2,4.8*subplot_row_num))
+    fig = plt.figure(figsize=(6.4*subplot_col_num/(num_vertical/num_horizontal),4.8*subplot_row_num))
     # titleと紐づけ用のカウントを用意.
     ax_count = -1
     for row_num in range(subplot_row_num):
@@ -170,7 +171,7 @@ def scat_dots_basic(ax, dots_kind_matrix,\
         
         if connection_list_horizontal[0].size > 0:
             container.append(\
-                ax.plot(connection_list_horizontal, connection_list_vertical, c=colors[plotting_color_index], lw=4)\
+                ax.plot(connection_list_horizontal, connection_list_vertical, c=colors[plotting_color_index], lw=linewidth)\
                 )
     
     container.append(\

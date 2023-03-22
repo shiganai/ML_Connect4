@@ -17,7 +17,7 @@ class Network(nn.Module):
         
         self.num_kind = env.num_kind
         
-        full_kernel_size = max([env.num_vertical,env.num_horizontal])
+        full_kernel_size = max([env.num_vertical-2,env.num_horizontal])
         
         self.conv2d_each_color = nn.Conv2d(in_channels=1, out_channels=1, \
                                            kernel_size=full_kernel_size, \
