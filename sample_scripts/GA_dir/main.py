@@ -13,7 +13,7 @@ if_disp_dots=False
 
 import time
 
-env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4)
+env = puyo_env.puyo_env(num_next_2dots=1, num_kind=4)
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -30,7 +30,7 @@ def preview_ai(env, model):
 
 def eval_network(env, model):
     all_scores = []
-    for ii in range(2):
+    for ii in range(4):
         score, _, _, _ = env.play_one_game(model)
         all_scores.append(score)
     mean_score = np.array(all_scores).mean()
