@@ -162,7 +162,7 @@ class NN_each_LN_exp(nn.Module):
                            self.conv2d_each_color, self.conv2d_not_each_color, self.conv2d_empty,\
                            self.conv2d_not_each_color_2nd]
         for ii in self.all_layers:
-            nn.init.normal(ii.weight, mean=0,std=0.14)
+            nn.init.normal(ii.weight, mean=0,std=0.2)
 
     def forward(self, dots_kind_matrix_3D):
         # dots_kind_matrix_3Dはnumpy.array
@@ -215,6 +215,14 @@ class NN_each_LN_exp(nn.Module):
                                                dots_kind_matrix_3D.shape[3], \
                                                self.num_kind \
                                                ))
+        not_each_color_mat_log = torch.zeros(\
+                                             size=(\
+                                                   dots_kind_matrix_3D.shape[0], \
+                                                   dots_kind_matrix_3D.shape[1], \
+                                                   dots_kind_matrix_3D.shape[2], \
+                                                   dots_kind_matrix_3D.shape[3], \
+                                                   self.num_kind \
+                                                   ))
         
         # 空の配置に基づいたつながりそうかの評価 
         # 空が周りに多いところはつながりやすい?
@@ -225,14 +233,11 @@ class NN_each_LN_exp(nn.Module):
         
         for ii in range(self.num_kind):
             each_color_mat = (dots_kind_matrix_3D == ii + 1) * 1.0
-            not_each_color_mat = torch.logical_not(each_color_mat + empty > 0) * 1.0
+            not_each_color_mat = (each_color_mat + empty == 0) * 1.0
             
             # 各色の配置のみに基づいたつながりそうかの評価
             # 想定は each_color_value > 0 で, 大きいだけつながりやすい
             each_color_value = self.conv2d_each_color(each_color_mat)
-            
-            each_color_mat_log[:,:,:,:,ii] = each_color_mat
-            each_color_value_log[:,:,:,:,ii] = each_color_value
             
             each_color_value += empty_value
             
@@ -246,11 +251,17 @@ class NN_each_LN_exp(nn.Module):
             each_color_value[torch.logical_not(each_color_mat)] = 0
             
             all_color_value = all_color_value + each_color_value
+            
+            # 使いまわしように保存
+            each_color_mat_log[:,:,:,:,ii] = each_color_mat
+            each_color_value_log[:,:,:,:,ii] = each_color_value
+            not_each_color_mat_log[:,:,:,:,ii] = not_each_color_mat
                 
         # all_color_value に基づいて, 改めて消しづらさを考える.
         # 他色であっても, そこが消しやすい場所であるなら, 評価値を下げる必要はない?
         # kernel size を奇数にしたから形が決定されるので, ここで初期化しておく
         all_color_value_2nd = all_color_value
+        all_color_value_2nd = 1/(1 + torch.exp(-all_color_value_2nd) )
         
         # all_color_value_2nd を何回更新するか. 
         # 1回ごとに連鎖数が1回増える想定. 
@@ -259,12 +270,12 @@ class NN_each_LN_exp(nn.Module):
         #       1回目の all_color_value_2nd によって更に赤が消しやすいって分かって,
         #       2回目の all_color_value_2nd によって更に青が消しやすいって分かるイメージ
         # sigmoid で正規化するか悩むところ.
-        num_depth = 1
+        num_depth = 3
         for reading_depth in range(num_depth):
             for ii in range(self.num_kind):
                 each_color_mat = each_color_mat_log[:,:,:,:,ii]
                 # 先ほどと異なり, 他色の座標の評価は消しやすさに基づく
-                not_each_color_mat_2nd = (torch.logical_not(each_color_mat + empty > 0) * 1.0) * all_color_value_2nd
+                not_each_color_mat_2nd = not_each_color_mat_log[:,:,:,:,ii] * all_color_value_2nd
                 
                 # 各色の配置のみに基づいたつながりそうかの評価
                 # 想定は each_color_value > 0 で, 大きいだけつながりやすい
@@ -285,6 +296,7 @@ class NN_each_LN_exp(nn.Module):
                 each_color_value[torch.logical_not(each_color_mat)] = 0
                 
                 all_color_value_2nd = all_color_value_2nd + each_color_value
+                all_color_value_2nd = 1/(1 + torch.exp(-all_color_value_2nd) )
         
         
         linear_size = int(all_color_value_2nd.numel()/all_color_value_2nd.shape[0])
