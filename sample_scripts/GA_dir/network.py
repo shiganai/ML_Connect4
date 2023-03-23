@@ -218,10 +218,10 @@ class NN_each_LN_exp(nn.Module):
         
         # 空の配置に基づいたつながりそうかの評価 
         # 空が周りに多いところはつながりやすい?
-        # 想定は empty > 0 で, 大きいだけつながりやすい
+        # 想定は empty_value > 0 で, 大きいだけつながりやすい
         # empty は共通だからここで初期化しておく
         empty = (dots_kind_matrix_3D == 0) * 1.0
-        empty = self.conv2d_empty(empty)
+        empty_value = self.conv2d_empty(empty)
         
         for ii in range(self.num_kind):
             each_color_mat = (dots_kind_matrix_3D == ii + 1) * 1.0
@@ -234,7 +234,7 @@ class NN_each_LN_exp(nn.Module):
             each_color_mat_log[:,:,:,:,ii] = each_color_mat
             each_color_value_log[:,:,:,:,ii] = each_color_value
             
-            each_color_value += empty
+            each_color_value += empty_value
             
             # 他の色の配置のみに基づいたつながらなさそうかの評価
             # 他の色が多いところは消しづらい?
@@ -272,8 +272,8 @@ class NN_each_LN_exp(nn.Module):
                 
                 # 空の配置に基づいたつながりそうかの評価 
                 # 空が周りに多いところはつながりやすい?
-                # 想定は empty > 0 で, 大きいだけつながりやすい
-                each_color_value += empty
+                # 想定は empty_value > 0 で, 大きいだけつながりやすい
+                each_color_value += empty_value
                 
                 # 他の色の配置のみに基づいたつながらなさそうかの評価
                 # 他の色が多いところは消しづらい?
