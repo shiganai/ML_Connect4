@@ -7,8 +7,6 @@ import torch.nn.functional as F
 
 import numpy as np
 from config import elitism_pct, mutation_prob, weights_mutate_power, device
-# n_squre = 2**7
-n_squre = 200
 
 class NN_direct_LN_exp(nn.Module):
 
@@ -37,6 +35,7 @@ class NN_direct_LN_exp(nn.Module):
         
         linear_input_size = color_mat_3d.size(dim=1)
         
+        n_squre = 200
         self.layer1 = nn.Linear(linear_input_size, n_squre)
         self.layer2 = nn.Linear(n_squre, n_squre)
         self.layer3 = nn.Linear(n_squre, 1) # 何連鎖できそうなのかの期待値を返すイメージ
@@ -154,6 +153,7 @@ class NN_each_LN_exp(nn.Module):
         
         linear_input_size = color_mat_3d.size(dim=1)
         
+        n_squre = 100
         self.layer1 = nn.Linear(linear_input_size, n_squre)
         self.layer2 = nn.Linear(n_squre, n_squre)
         self.layer3 = nn.Linear(n_squre, 1) # 何連鎖できそうなのかの期待値を返すイメージ
