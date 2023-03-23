@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from network import NN_direct_LN_exp
+from network import NN_direct_LN_exp, NN_each_LN_exp
 from config import elitism_pct, mutation_prob, weights_mutate_power, device
 
 
@@ -17,10 +17,11 @@ class Population:
         self.size = size
         self.input_size = env.num_dots
         self.env = env
+        self.model_basic = lambda env: NN_each_LN_exp(env)
         
         if old_population is None:
             # 前世代なしの場合は、個体数全て初期値でモデルを生成する
-            self.models = [NN_direct_LN_exp(self.env) for i in range(size)]
+            self.models = [self.model_basic(self.env) for i in range(size)]
         else:
             # 前世代が与えられた場合は交叉(crossover),突然変異(mutate)を行い次世代を生成する
             self.old_models = old_population.models
@@ -54,7 +55,7 @@ class Population:
 
                 # モデルの各ウエイトを50/50の確率で交叉
                 model_a, model_b = self.old_models[a], self.old_models[b]
-                model_c = NN_direct_LN_exp(self.env)
+                model_c = self.model_basic(self.env)
 
                 for layer_index in range(len(model_c.all_layers)):
                     for row_index in range(len(model_a.all_layers[layer_index].weight)):
