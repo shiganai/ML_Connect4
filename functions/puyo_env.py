@@ -604,12 +604,12 @@ class puyo_env:
                         raise Exception('NN_values[best_procedure_index] != best_NN_value even though is_NN_value_chosen is True')
                 
                 if if_disp:
-                    if max_loop_num_till_depth_index == best_NN_index:
-                        # 選んだ手順が同じ場合, 強調する必要なし
+                    if (max_loop_num_till_depth_index == best_NN_index) and (max_loop_num_till_depth > 0):
+                        # 選んだ手順が同じ場合で1連鎖以上ある場合, 強調する必要なし
                         print(", and same candidate", end="")
-                    elif max_loop_num_till_max_depth_by_NN == max_loop_num_till_depth:
-                        # 選んだ手順が違うが連鎖数が同じ場合, 強調する必要なし
-                        print(", LN was same, so chose NN_value")
+                    elif (max_loop_num_till_max_depth_by_NN == max_loop_num_till_depth) and (max_loop_num_till_depth > 0):
+                        # 選んだ手順が違うが連鎖数が同じで1連鎖以上ある場合, 強調する必要なし
+                        print(", LN was same, so chose NN_value", end="")
                     elif max_loop_num_till_max_depth_by_NN < max_loop_num_till_depth:
                         # NNが選んだ連鎖数が確定連鎖数より小さい場合
                         if is_NN_value_chosen:
