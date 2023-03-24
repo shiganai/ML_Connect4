@@ -162,7 +162,7 @@ class NN_each_LN_exp(nn.Module):
                            self.conv2d_each_color, self.conv2d_not_each_color, self.conv2d_empty,\
                            self.conv2d_not_each_color_2nd]
         for ii in self.all_layers:
-            nn.init.normal(ii.weight, mean=0,std=0.2)
+            nn.init.normal(ii.weight, mean=0,std=0.3)
 
     def forward(self, dots_kind_matrix_3D):
         # dots_kind_matrix_3Dはnumpy.array
@@ -270,7 +270,7 @@ class NN_each_LN_exp(nn.Module):
         #       1回目の all_color_value_2nd によって更に赤が消しやすいって分かって,
         #       2回目の all_color_value_2nd によって更に青が消しやすいって分かるイメージ
         # sigmoid で正規化するか悩むところ.
-        num_depth = 3
+        num_depth = 4
         for reading_depth in range(num_depth):
             for ii in range(self.num_kind):
                 each_color_mat = each_color_mat_log[:,:,:,:,ii]

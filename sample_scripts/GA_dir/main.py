@@ -30,6 +30,7 @@ def preview_ai(env, model):
 
 def eval_network(env, model):
     all_scores = []
+    # ここで平均をとる数が多すぎると, 消極的なモノばかりが採用されるようになる.
     for ii in range(2):
         score, _, _, _ = env.play_one_game(model)
         all_scores.append(score)
