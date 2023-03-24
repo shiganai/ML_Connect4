@@ -72,16 +72,16 @@ class Population:
                         model.all_layers[layer_index].weight.data[prob < prob_neuron_from_a] = \
                             model_a.all_layers[layer_index].weight.data[prob < prob_neuron_from_a]
                             
-                        # bias
-                        prob = torch.rand(\
-                                          size=(model.all_layers[layer_index].bias.shape[0],), \
-                                          )
-                        
-                        model.all_layers[layer_index].bias.data = model_b.all_layers[layer_index].bias.data.detach().clone()
-                        model.all_layers[layer_index].bias.data[prob < prob_neuron_from_a] = \
-                            model_a.all_layers[layer_index].bias.data[prob < prob_neuron_from_a]
-                        
-                        None
+                    
+                        if not(model.all_layers[layer_index].bias is None):
+                            # bias
+                            prob = torch.rand(\
+                                              size=(model.all_layers[layer_index].bias.shape[0],), \
+                                              )
+                            
+                            model.all_layers[layer_index].bias.data = model_b.all_layers[layer_index].bias.data.detach().clone()
+                            model.all_layers[layer_index].bias.data[prob < prob_neuron_from_a] = \
+                                model_a.all_layers[layer_index].bias.data[prob < prob_neuron_from_a]
                     elif len(model.all_layers[layer_index].weight.shape) == 4: # Conv2d
                         # weight
                         prob = torch.rand(\
@@ -93,13 +93,13 @@ class Population:
                         model.all_layers[layer_index].weight.data[0][0][prob < prob_neuron_from_a] = \
                             model_a.all_layers[layer_index].weight.data[0][0][prob < prob_neuron_from_a]
                         
-                        # bias
-                        model.all_layers[layer_index].bias.data = model_b.all_layers[layer_index].bias.data.detach().clone()
-                        prob = torch.rand(size=(1,))
-                        if prob > prob_neuron_from_a:
-                            model.all_layers[layer_index].bias.data = model_a.all_layers[layer_index].bias.data
-                        
-                        None
+                        if not(model.all_layers[layer_index].bias is None):
+                            # bias
+                            model.all_layers[layer_index].bias.data = model_b.all_layers[layer_index].bias.data.detach().clone()
+                            prob = torch.rand(size=(1,))
+                            if prob > prob_neuron_from_a:
+                                model.all_layers[layer_index].bias.data = model_a.all_layers[layer_index].bias.data
+                                
                 None
 
             self.models.append(model)
@@ -113,10 +113,12 @@ class Population:
                 
                 if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
                     weight_noise_size = (model.all_layers[layer_index].weight.shape[0], model.all_layers[layer_index].weight.shape[1])
-                    bias_noise_size = (model.all_layers[layer_index].bias.shape[0],)
+                    if not(model.all_layers[layer_index].bias is None):
+                        bias_noise_size = (model.all_layers[layer_index].bias.shape[0],)
                 elif len(model.all_layers[layer_index].weight.shape) == 4: # Conv2d
                     weight_noise_size = (model.all_layers[layer_index].weight.shape[2], model.all_layers[layer_index].weight.shape[3])
-                    bias_noise_size = (1,)
+                    if not(model.all_layers[layer_index].bias is None):
+                        bias_noise_size = (1,)
                 
                 # =============================================================================
                 # =============================================================================
@@ -146,16 +148,17 @@ class Population:
                 # =============================================================================
                 # =============================================================================
                 # =============================================================================
-                prob = torch.rand(size=bias_noise_size)
-                
-                base_noise = torch.randint(0,2,size=bias_noise_size)
-                small_noise = torch.rand(size=bias_noise_size)
-                noise = (base_noise*2 - 1) + (small_noise * 2 - 1) * 0.1
-                
-                if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
-                    model.all_layers[layer_index].bias.data[prob < mutation_prob] = \
-                        model.all_layers[layer_index].bias.data[prob < mutation_prob] * noise[prob < mutation_prob]
-                elif len(model.all_layers[layer_index].weight.shape) == 4: # Conv2d
-                    if prob > mutation_prob:
-                        model.all_layers[layer_index].bias.data = model.all_layers[layer_index].bias.data * noise
+                if not(model.all_layers[layer_index].bias is None):
+                    prob = torch.rand(size=bias_noise_size)
+                    
+                    base_noise = torch.randint(0,2,size=bias_noise_size)
+                    small_noise = torch.rand(size=bias_noise_size)
+                    noise = (base_noise*2 - 1) + (small_noise * 2 - 1) * 0.1
+                    
+                    if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
+                        model.all_layers[layer_index].bias.data[prob < mutation_prob] = \
+                            model.all_layers[layer_index].bias.data[prob < mutation_prob] * noise[prob < mutation_prob]
+                    elif len(model.all_layers[layer_index].weight.shape) == 4: # Conv2d
+                        if prob > mutation_prob:
+                            model.all_layers[layer_index].bias.data = model.all_layers[layer_index].bias.data * noise
                 

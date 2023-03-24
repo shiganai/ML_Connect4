@@ -124,29 +124,19 @@ class NN_each_LN_exp(nn.Module):
         
         self.conv2d_each_color = nn.Conv2d(in_channels=1, out_channels=1, \
                                            kernel_size=full_kernel_size, \
-                                           padding = int(full_kernel_size/2) )
+                                           padding = int(full_kernel_size/2), bias=False )
                                            
         self.conv2d_not_each_color = nn.Conv2d(in_channels=1, out_channels=1, \
                                                 kernel_size=full_kernel_size, \
-                                                padding = int(full_kernel_size/2) )
+                                                padding = int(full_kernel_size/2), bias=False )
                                                 
         self.conv2d_not_each_color_2nd = nn.Conv2d(in_channels=1, out_channels=1, \
                                                 kernel_size=full_kernel_size, \
-                                                padding = int(full_kernel_size/2) )
+                                                padding = int(full_kernel_size/2), bias=False )
                                                 
         self.conv2d_empty = nn.Conv2d(in_channels=1, out_channels=1, \
                                         kernel_size=full_kernel_size, \
-                                        padding = int(full_kernel_size/2) )
-        
-        # 各座標に対してそれぞれ1連鎖目で消える期待値を返すイメージ
-        self.conv2d_LN_1_exp = nn.Conv2d(in_channels=1, out_channels=1, \
-                                        kernel_size=full_kernel_size, \
-                                        padding = int(full_kernel_size/2) )
-            
-        # 各座標に対してそれぞれ2連鎖目で消える期待値を返すイメージ
-        self.conv2d_LN_2_exp = nn.Conv2d(in_channels=1, out_channels=1, \
-                                        kernel_size=full_kernel_size, \
-                                        padding = int(full_kernel_size/2) )
+                                        padding = int(full_kernel_size/2), bias=False )
         
         # ダミーを入れて、変化を把握
         dots_kind_matrix_3D = np.full((env.num_vertical,env.num_horizontal),0)
@@ -155,16 +145,17 @@ class NN_each_LN_exp(nn.Module):
         linear_input_size = color_mat_3d.size(dim=1)
         
         n_squre = 100
-        self.layer1 = nn.Linear(linear_input_size, n_squre)
-        self.layer2 = nn.Linear(n_squre, n_squre)
-        self.layer3 = nn.Linear(n_squre, 1) # 何連鎖できそうなのかの期待値を返すイメージ
+        self.layer1 = nn.Linear(linear_input_size, n_squre, bias=False)
+        self.layer2 = nn.Linear(n_squre, n_squre, bias=False)
+        self.layer3 = nn.Linear(n_squre, 1, bias=False) # 何連鎖できそうなのかの期待値を返すイメージ
         
         self.all_layers = [self.layer1, self.layer2, self.layer3, \
                            self.conv2d_each_color, self.conv2d_not_each_color, self.conv2d_empty,\
                            self.conv2d_not_each_color_2nd]
         for ii in self.all_layers:
             nn.init.normal(ii.weight, mean=0,std=0.3)
-            nn.init.normal(ii.bias, mean=0,std=0.3)
+            if not(ii.bias is None):
+                nn.init.normal(ii.bias, mean=0,std=0.3)
 
     def forward(self, dots_kind_matrix_3D):
         # dots_kind_matrix_3Dはnumpy.array
