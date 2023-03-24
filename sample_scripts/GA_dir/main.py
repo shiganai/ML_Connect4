@@ -13,7 +13,7 @@ if_disp_dots=False
 
 import time
 
-env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4)
+env = puyo_env.puyo_env(num_next_2dots=1, num_kind=4)
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -30,11 +30,12 @@ def preview_ai(env, model):
 
 def eval_network(env, model):
     all_scores = []
+    # ここで平均をとる数が多すぎると, 消極的なモノばかりが採用されるようになる.
     for ii in range(2):
         score, _, _, _ = env.play_one_game(model)
         all_scores.append(score)
-    mean_score = np.array(all_scores).mean()
-    return mean_score
+    # mean_score = np.array(all_scores).mean()
+    return all_scores
     
 
 pop_size = 50
@@ -53,14 +54,15 @@ while True:
     iteration += 1
     start = time.time()
     print("{} : ".format(iteration), end="")
-        
+    
+    all_scores = []
     for i in range(pop_size):
-        population.fitnesses[i] = eval_network(env, population.models[i])
-        print("*".format(iteration), end="")
+        all_score = eval_network(env, population.models[i])
+        all_scores.append(all_score)
+        population.fitnesses[i] = np.array(all_score).mean()
+        print("{},".format(i), end="")
     print()
     print("time: {}".format(time.time()-start))
-
-    print(population.fitnesses)
     best_model_idx = population.fitnesses.argmax()
     best_model = population.models[best_model_idx]
     score = 0
@@ -69,4 +71,5 @@ while True:
         score = preview_ai(env, best_model)
         print("score: {}".format(score))
 
+    print(all_scores)
     population = Population(env=env, size=pop_size, old_population=population)
