@@ -134,7 +134,7 @@ class Population:
                                
                 if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
                     model.all_layers[layer_index].weight.data[prob < mutation_prob] = \
-                        noise[prob < mutation_prob]
+                        model.all_layers[layer_index].weight.data[prob < mutation_prob] * noise[prob < mutation_prob]
                 elif len(model.all_layers[layer_index].weight.shape) == 4: # Conv2d
                     model.all_layers[layer_index].weight.data[0][0][prob < mutation_prob] = \
                         model.all_layers[layer_index].weight.data[0][0][prob < mutation_prob] * noise[prob < mutation_prob]
@@ -154,7 +154,7 @@ class Population:
                 
                 if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
                     model.all_layers[layer_index].bias.data[prob < mutation_prob] = \
-                        noise[prob < mutation_prob]
+                        model.all_layers[layer_index].bias.data[prob < mutation_prob] * noise[prob < mutation_prob]
                 elif len(model.all_layers[layer_index].weight.shape) == 4: # Conv2d
                     if prob > mutation_prob:
                         model.all_layers[layer_index].bias.data = model.all_layers[layer_index].bias.data * noise
