@@ -30,14 +30,14 @@ def preview_ai(env, model):
 
 def eval_network(env, model):
     all_scores = []
-    for ii in range(4):
+    for ii in range(2):
         score, _, _, _ = env.play_one_game(model)
         all_scores.append(score)
     mean_score = np.array(all_scores).mean()
     return mean_score
     
 
-pop_size = 50
+pop_size = 100
 population = Population(env=env, size=pop_size)
 score = 0
 lines = 0
@@ -59,8 +59,6 @@ while True:
         print("*".format(iteration), end="")
     print()
     print("time: {}".format(time.time()-start))
-
-    print(population.fitnesses)
     best_model_idx = population.fitnesses.argmax()
     best_model = population.models[best_model_idx]
     score = 0
@@ -69,4 +67,5 @@ while True:
         score = preview_ai(env, best_model)
         print("score: {}".format(score))
 
+    print(population.fitnesses)
     population = Population(env=env, size=pop_size, old_population=population)

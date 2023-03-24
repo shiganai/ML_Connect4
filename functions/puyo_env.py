@@ -465,6 +465,7 @@ class puyo_env:
             # action_single_depth は毎ループ必ず選ばれる必要があるから, 
             # None で初期化して, 選ばれなかった場合 Error が起きるようにしておく.
             action_single_depth = None
+            choise_str = ""
             
             if if_disp:
                 print("At turn: {:>2}".format(self.turn_count), end="")
@@ -598,26 +599,35 @@ class puyo_env:
                 action_single_depth = procedure_till_max_depth[best_procedure_index,0] # この一手の procedure を取得
                 
                 NN_history.append(chosen_NN_value)
+                
+                # おかしなことが起きてないかチェック用. 消しても問題ない.
                 if is_NN_value_chosen:
                     # NNが選んだ手順が採用された場合, その値を記録して, 後の結果と比較する
                     if NN_values[best_procedure_index] != best_NN_value:
                         raise Exception('NN_values[best_procedure_index] != best_NN_value even though is_NN_value_chosen is True')
                 
                 if if_disp:
+                    # 後でグラフのタイトルに足すようの string の設定も一緒にする
+                    # デフォルトは選んだ手順の NN_value を表示
+                    choise_str = "{:>.2f}".format(chosen_NN_value)
                     if (max_loop_num_till_depth_index == best_NN_index) and (max_loop_num_till_depth > 0):
                         # 選んだ手順が同じ場合で1連鎖以上ある場合, 強調する必要なし
                         print(", and same candidate", end="")
+                        choise_str = "same {:>.2f}".format(chosen_NN_value)
                     elif (max_loop_num_till_max_depth_by_NN == max_loop_num_till_depth) and (max_loop_num_till_depth > 0):
                         # 選んだ手順が違うが連鎖数が同じで1連鎖以上ある場合, 強調する必要なし
                         print(", LN was same, so chose NN_value", end="")
+                        choise_str = "{:>.2f}".format(chosen_NN_value)
                     elif max_loop_num_till_max_depth_by_NN < max_loop_num_till_depth:
                         # NNが選んだ連鎖数が確定連鎖数より小さい場合
                         if is_NN_value_chosen:
                             # NNが選んだ手順が採用された場合, 強調!!!!
                             print(", BUT chose NN", end="")
+                            choise_str = "{:>.2f} > {}".format(chosen_NN_value, max_loop_num_till_depth)
                         else:
                             # NNが選んだ手順が採用されなかった場合, 強調する必要なし
                             print(", so chose loop_num with NN: {:>.2f}".format(chosen_NN_value), end="")
+                            choise_str = "LN {}({:>.1f}) > {:>.1f}".format(chosen_loop_num, chosen_NN_value, best_NN_value)
                 
             
             # =============================================================================
@@ -674,7 +684,7 @@ class puyo_env:
                 
                 if chosen_loop_num < 1: # 連鎖がない場合はdots_transition_3D_listの最後の要素の最後に追加する
                     # プロット用タイトルにはターン数だけ入力
-                    title_for_dots_transition_3D_list.append("turn: {}".format(self.turn_count))
+                    title_for_dots_transition_3D_list.append("{}:  ".format(self.turn_count) + choise_str)
                     if dots_transition_3D_list[-1] == []: # まずは初期化
                         dots_transition_3D_list[-1] = adding_transition
                     else:
@@ -691,8 +701,8 @@ class puyo_env:
                     # タイトルは 初めの2つに turn: ?, chosen loop_num: ? を表示させた後、
                     # 空白を繰り返す.
                     title_for_dots_transition_current_turn = [\
-                                                              "turn: {}".format(self.turn_count), \
-                                                              "chosen LN: {}".format(chosen_loop_num),\
+                                                              "{}:  ".format(self.turn_count) + choise_str, \
+                                                              "LN: {}".format(chosen_loop_num),\
                                                               ]
                     title_for_dots_transition_current_turn.extend(["---------"]*(dots_transition_current_turn.shape[2]-2))
                     title_for_dots_transition_3D_list.extend(title_for_dots_transition_current_turn)
