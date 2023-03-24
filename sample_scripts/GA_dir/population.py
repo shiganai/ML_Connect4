@@ -46,7 +46,7 @@ class Population:
         for i in range(self.size):
             if i < self.size * elitism_pct:
                 # 優秀な個体は(上位20%)はそのまま
-                model_c = self.old_models[sort_indices[i]]
+                model = self.old_models[sort_indices[i]]
             else:
                 # それ以外はランダムな2つの個体をかけ合わせる
                 a, b = np.random.choice(self.size, size=2, p=probs,
@@ -57,22 +57,52 @@ class Population:
                 model_a, model_b = self.old_models[a], self.old_models[b]
                 model_c = self.model_basic(self.env)
 
-                for layer_index in range(len(model_c.all_layers)):
-                    for row_index in range(len(model_a.all_layers[layer_index].weight)):
-                        prob = np.random.rand(\
-                                       model_c.all_layers[layer_index].weight.data.size()[0], \
-                                       model_c.all_layers[layer_index].weight.data.size()[1] \
-                                       )
-                        prob = torch.tensor(prob, dtype=torch.float32, device=device)
+                for layer_index in range(len(model.all_layers)):
+                    if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
+                        # weight
+                        prob = torch.rand(\
+                                          size=(\
+                                                model.all_layers[layer_index].weight.shape[0], \
+                                                model.all_layers[layer_index].weight.shape[1] \
+                                                ) \
+                                          )
                         
-                        model_c.all_layers[layer_index].weight.data = model_b.all_layers[layer_index].weight.data
-                        model_c.all_layers[layer_index].weight.data[prob > prob_neuron_from_a] = \
-                            model_a.all_layers[layer_index].weight.data[prob > prob_neuron_from_a]
+                        # detach().clone()しないと model の変更が model_b にも反映される
+                        model.all_layers[layer_index].weight.data = model_b.all_layers[layer_index].weight.data.detach().clone()
+                        model.all_layers[layer_index].weight.data[prob < prob_neuron_from_a] = \
+                            model_a.all_layers[layer_index].weight.data[prob < prob_neuron_from_a]
+                            
+                        # bias
+                        prob = torch.rand(\
+                                          size=(model.all_layers[layer_index].bias.shape[0],), \
+                                          )
+                        
+                        model.all_layers[layer_index].bias.data = model_b.all_layers[layer_index].bias.data.detach().clone()
+                        model.all_layers[layer_index].bias.data[prob < prob_neuron_from_a] = \
+                            model_a.all_layers[layer_index].bias.data[prob < prob_neuron_from_a]
+                        
                         None
-                    None
+                    elif len(model.all_layers[layer_index].weight.shape) == 4: # Conv2d
+                        # weight
+                        prob = torch.rand(\
+                                          model.all_layers[layer_index].weight.shape[2], \
+                                          model.all_layers[layer_index].weight.shape[3] \
+                                          )
+                            
+                        model.all_layers[layer_index].weight.data = model_b.all_layers[layer_index].weight.data.detach().clone()
+                        model.all_layers[layer_index].weight.data[0][0][prob < prob_neuron_from_a] = \
+                            model_a.all_layers[layer_index].weight.data[0][0][prob < prob_neuron_from_a]
+                        
+                        # bias
+                        model.all_layers[layer_index].bias.data = model_b.all_layers[layer_index].bias.data.detach().clone()
+                        prob = torch.rand(size=(1,))
+                        if prob > prob_neuron_from_a:
+                            model.all_layers[layer_index].bias.data = model_a.all_layers[layer_index].bias.data
+                        
+                        None
                 None
 
-            self.models.append(model_c)
+            self.models.append(model)
 
     def mutate(self):
         """ 突然変異(mutate)
@@ -81,42 +111,51 @@ class Population:
         for model in self.models:
             for layer_index in range(len(model.all_layers)):
                 
-                if len(model.all_layers[layer_index].weight.data.size()) == 2: # Linear
-                    prob = np.random.rand(\
-                                   model.all_layers[layer_index].weight.data.size()[0], \
-                                   model.all_layers[layer_index].weight.data.size()[1] \
-                                   )
-                    prob = torch.tensor(prob, dtype=torch.float32, device=device)
+                if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
+                    weight_noise_size = (model.all_layers[layer_index].weight.shape[0], model.all_layers[layer_index].weight.shape[1])
+                    bias_noise_size = (model.all_layers[layer_index].bias.shape[0],)
+                elif len(model.all_layers[layer_index].weight.shape) == 4: # Conv2d
+                    weight_noise_size = (model.all_layers[layer_index].weight.shape[2], model.all_layers[layer_index].weight.shape[3])
+                    bias_noise_size = (1,)
+                
+                # =============================================================================
+                # =============================================================================
+                # =============================================================================
+                # # #  weight
+                # =============================================================================
+                # =============================================================================
+                # =============================================================================
                     
-                    noise = np.random.rand(\
-                                   model.all_layers[layer_index].weight.data.size()[0], \
-                                   model.all_layers[layer_index].weight.data.size()[1] \
-                                   )
-                    noise = (2*noise - 1) * 0.3
-                    noise = torch.tensor(noise, dtype=torch.float32, device=device)
-                    
+                prob = torch.rand(weight_noise_size)
+                
+                base_noise = torch.randint(0,2,size=weight_noise_size)
+                small_noise = torch.rand(size=weight_noise_size)
+                noise = (base_noise*2 - 1) + (small_noise * 2 - 1) * 0.1
+                               
+                if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
                     model.all_layers[layer_index].weight.data[prob < mutation_prob] = \
                         noise[prob < mutation_prob]
-                
-                if len(model.all_layers[layer_index].weight.data.size()) == 4: # Conv2d
-                    prob = np.random.rand(\
-                                   model.all_layers[layer_index].weight.data.size()[2], \
-                                   model.all_layers[layer_index].weight.data.size()[3] \
-                                   )
-                    prob = torch.tensor(prob, dtype=torch.float32, device=device)
-                    
-                    base_noise = np.random.randint(0,2,\
-                                   size= (model.all_layers[layer_index].weight.data.size()[2], \
-                                          model.all_layers[layer_index].weight.data.size()[3]) \
-                                   )
-                                   
-                    small_noise = np.random.rand(\
-                                   model.all_layers[layer_index].weight.data.size()[2], \
-                                   model.all_layers[layer_index].weight.data.size()[3] \
-                                   )
-                        
-                    noise = (base_noise*2 - 1) + (small_noise * 2 - 1) * 0.1
-                    noise = torch.tensor(noise, dtype=torch.float32, device=device)
-                    
+                elif len(model.all_layers[layer_index].weight.shape) == 4: # Conv2d
                     model.all_layers[layer_index].weight.data[0][0][prob < mutation_prob] = \
                         model.all_layers[layer_index].weight.data[0][0][prob < mutation_prob] * noise[prob < mutation_prob]
+                
+                # =============================================================================
+                # =============================================================================
+                # =============================================================================
+                # # #  bias
+                # =============================================================================
+                # =============================================================================
+                # =============================================================================
+                prob = torch.rand(size=bias_noise_size)
+                
+                base_noise = torch.randint(0,2,size=bias_noise_size)
+                small_noise = torch.rand(size=bias_noise_size)
+                noise = (base_noise*2 - 1) + (small_noise * 2 - 1) * 0.1
+                
+                if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
+                    model.all_layers[layer_index].bias.data[prob < mutation_prob] = \
+                        noise[prob < mutation_prob]
+                elif len(model.all_layers[layer_index].weight.shape) == 4: # Conv2d
+                    if prob > mutation_prob:
+                        model.all_layers[layer_index].bias.data = model.all_layers[layer_index].bias.data * noise
+                
