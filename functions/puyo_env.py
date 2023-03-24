@@ -108,7 +108,7 @@ class puyo_env:
         ########## define returning value
         state = self.update_state()
         observation = state
-        reward = float(loop_num**2)
+        reward = int(loop_num**2)
         
         # if loop_num < 2:
         #     reward = 0
@@ -724,7 +724,8 @@ class puyo_env:
             
             observation, reward, terminated, truncated, info = self.step(action_single_depth)
             
-            reward = int(reward * ratio * 100)/100
+            if to_use_ratio:
+                reward = int(reward * ratio * 100)/100
                 
             sum_reward += reward
             step_count += 1
