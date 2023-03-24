@@ -44,6 +44,7 @@ class NN_direct_LN_exp(nn.Module):
                            self.conv2d_each_color, self.conv2d_not_each_color, self.conv2d_empty]
         for ii in self.all_layers:
             nn.init.normal(ii.weight, mean=0,std=0.12)
+            nn.init.normal(ii.bias, mean=0,std=0.12)
 
     def forward(self, dots_kind_matrix_3D):
         # dots_kind_matrix_3Dはnumpy.array
@@ -163,6 +164,7 @@ class NN_each_LN_exp(nn.Module):
                            self.conv2d_not_each_color_2nd]
         for ii in self.all_layers:
             nn.init.normal(ii.weight, mean=0,std=0.3)
+            nn.init.normal(ii.bias, mean=0,std=0.3)
 
     def forward(self, dots_kind_matrix_3D):
         # dots_kind_matrix_3Dはnumpy.array
