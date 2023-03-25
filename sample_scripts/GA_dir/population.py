@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from network import NN_direct_LN_exp, NN_each_LN_exp
+from network import NN_direct_LN_exp, NN_each_LN_exp, simple_linear_layer
 from config import elitism_pct, mutation_prob, weights_mutate_power, device
 
 

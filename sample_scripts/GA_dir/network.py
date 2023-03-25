@@ -295,3 +295,92 @@ class NN_each_LN_exp(nn.Module):
         linear_size = int(all_color_value_2nd.numel()/all_color_value_2nd.shape[0])
         all_color_value_2nd = torch.reshape(all_color_value_2nd, (all_color_value_2nd.shape[0],linear_size))
         return all_color_value_2nd
+
+# =============================================================================
+# =============================================================================
+# =============================================================================
+# =============================================================================
+# # # #     
+# =============================================================================
+# =============================================================================
+# =============================================================================
+# =============================================================================
+
+class simple_linear_layer(nn.Module):
+
+    def __init__(self, env):
+        super(simple_linear_layer, self).__init__()
+        
+        self.num_kind = env.num_kind
+        
+        # ダミーを入れて、変化を把握
+        dots_kind_matrix_3D = np.full((env.num_vertical,env.num_horizontal),0)
+        color_mat_3d = self.generate_linear_input(dots_kind_matrix_3D)
+        
+        linear_input_size = color_mat_3d.size(dim=1)
+        
+        n_squre = linear_input_size
+        self.layer_in = nn.Linear(linear_input_size, n_squre, bias=False)
+        self.layer1 = nn.Linear(n_squre, n_squre, bias=True)
+        self.layer2 = nn.Linear(n_squre, n_squre, bias=True)
+        self.layer3 = nn.Linear(n_squre, n_squre, bias=True)
+        self.layer_out = nn.Linear(n_squre, 1, bias=True) # 何連鎖できそうなのかの期待値を返すイメージ
+        
+        self.all_layers = [self.layer_in, self.layer_out, \
+                           self.layer1, \
+                           self.layer2, \
+                           self.layer3, \
+                           ]
+        for ii in self.all_layers:
+            nn.init.normal(ii.weight, mean=0,std=0.04)
+            if not(ii.bias is None):
+                nn.init.normal(ii.bias, mean=0,std=0.03)
+
+    def forward(self, dots_kind_matrix_3D):
+        # dots_kind_matrix_3Dはnumpy.array
+        
+        color_mat_3d = self.generate_linear_input(dots_kind_matrix_3D)
+        
+        x = self.layer_in(color_mat_3d)
+        x = F.leaky_relu(input=x,negative_slope=0.2)
+        x = self.layer1(x)
+        x = F.leaky_relu(input=x,negative_slope=0.2)
+        x = self.layer2(x)
+        x = F.leaky_relu(input=x,negative_slope=0.2)
+        x = self.layer3(x)
+        x = F.leaky_relu(input=x,negative_slope=0.2)
+        x = self.layer_out(x)
+        x = F.sigmoid(x) * 10
+        return x
+    
+    def generate_linear_input(self, dots_kind_matrix_3D):
+        # trimming
+        if dots_kind_matrix_3D.ndim > 2:
+            dots_kind_matrix_3D = dots_kind_matrix_3D[0:-2,:,:]
+        else:
+            # 空次元を挿入しておく
+            dots_kind_matrix_3D = dots_kind_matrix_3D[0:-2,:,np.newaxis]
+        
+        # 3次元目を一番前にもってくる. 入力が複数になったように Conv2D には見せかける
+        dots_kind_matrix_3D = dots_kind_matrix_3D.transpose(2,0,1)
+        
+        # Tensorに変換
+        dots_kind_matrix_3D = torch.tensor(dots_kind_matrix_3D, dtype=torch.int32, device=device)
+        
+        # 各座標の色フラグ. 対等に扱うために0/1に直す.
+        each_color_mat_log = torch.zeros(\
+                                         size=(\
+                                               dots_kind_matrix_3D.shape[0], \
+                                               dots_kind_matrix_3D.shape[1], \
+                                               dots_kind_matrix_3D.shape[2], \
+                                               self.num_kind+1 \
+                                               ))
+        
+        for ii in range(self.num_kind+1):
+            each_color_mat = (dots_kind_matrix_3D == ii) * 1.0
+            each_color_mat_log[:,:,:,ii] = each_color_mat
+
+        
+        linear_size = int(each_color_mat_log.numel()/each_color_mat_log.shape[0])
+        each_color_mat_log = torch.reshape(each_color_mat_log, (each_color_mat_log.shape[0],linear_size))
+        return each_color_mat_log
