@@ -5,6 +5,7 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 
+from network import NN_direct_LN_exp, NN_each_LN_exp, simple_linear_layer, CNN_symmetry
 from population import Population
 
 from functions import puyo_env
@@ -14,6 +15,7 @@ if_disp_dots=False
 import time
 
 env = puyo_env.puyo_env(num_next_2dots=1, num_kind=4)
+NN = lambda env: CNN_symmetry(env)
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -31,7 +33,7 @@ def preview_ai(env, model):
 def eval_network(env, model):
     all_scores = []
     # ここで平均をとる数が多すぎると, 消極的なモノばかりが採用されるようになる.
-    for ii in range(2):
+    for ii in range(3):
         score, _, _, _ = env.play_one_game(model)
         all_scores.append(score)
     # mean_score = np.array(all_scores).mean()
@@ -39,7 +41,7 @@ def eval_network(env, model):
     
 
 pop_size = 50
-population = Population(env=env, size=pop_size)
+population = Population(env=env, NN=NN, size=pop_size)
 score = 0
 lines = 0
 start = time.time()
@@ -72,4 +74,4 @@ while True:
         print("score: {}".format(score))
 
     print(all_scores)
-    population = Population(env=env, size=pop_size, old_population=population)
+    population = Population(env=env, NN=NN, size=pop_size, old_population=population)
