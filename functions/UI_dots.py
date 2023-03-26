@@ -37,7 +37,7 @@ def scat_dots_by_procedure(dots_kind_matrix_3D_list, title_for_dots_transition_3
         if subplot_col_num < dots_kind_matrix_3D_list[list_index].shape[2]:
             subplot_col_num = dots_kind_matrix_3D_list[list_index].shape[2]
     
-    fig = plt.figure(figsize=(6.4*subplot_col_num/(num_vertical/num_horizontal),4.8*subplot_row_num))
+    fig = plt.figure(figsize=(6.4*subplot_col_num/(num_vertical/num_horizontal)*1.5,4.8*subplot_row_num))
     # titleと紐づけ用のカウントを用意.
     ax_count = -1
     for row_num in range(subplot_row_num):
