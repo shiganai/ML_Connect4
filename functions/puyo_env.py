@@ -57,9 +57,6 @@ class puyo_env:
         self.is_play_one_game_called = False
         self.to_use_result_till_max_depth = to_use_result_till_max_depth
         
-        # 確定連鎖数を基に選んだ手順を消さないためのフラグ.
-        self.is_NN_value_chosen = True
-        
         self.turn_count = 0 # temporary count for stop at some count
         self.termination_determined = False
         if to_use_result_till_max_depth:
@@ -242,7 +239,7 @@ class puyo_env:
                 result_till_max_depth = self.result_till_max_depth
             
             have_read_depth = self.num_next_2dots - 1
-            if not(self.is_NN_value_chosen):
+            if not(self.previous_is_NN_value_chosen):
                 print("",end="")
         
         for reading_depth_index in range(have_read_depth, self.num_next_2dots):
@@ -256,10 +253,29 @@ class puyo_env:
                 
                 NN_values = self.model(candidate_max_depth).to('cpu').detach().numpy().copy().flatten()
                 
-                if not(self.is_NN_value_chosen):
+                if not(self.previous_is_NN_value_chosen):
                     # もし前回確定連鎖数に基づいて手順が選ばれていたら, その手順を取り除かないようにしなきゃいけない
                     # 前回の選択を保存するために procedure_till_max_depth == self.previous_procedure_transition のものは np.Inf にする
-                    NN_values[procedure_till_max_depth[:,0] == self.previous_procedure_transition[1]] = np.Inf
+                    
+                    # 全確定ドットまでの手順を完全に一致させる場合
+                    NN_values[\
+                              np.all(\
+                                     procedure_till_max_depth == self.previous_procedure_transition[1:], \
+                                     axis=1, \
+                                     ) \
+                              ] = np.Inf
+                    
+                    # # 第一手順だけを一致させる場合. 
+                    # # NN_value の最高値を把握して, 手順完全一致のものは +2, それ以外は +1 をする.
+                    # # num_nest_2dtos が3以上の場合、最深度の手順以外が確定しちゃう.
+                    # max_NN_value = NN_values.max()
+                    # NN_values[procedure_till_max_depth[:,0] == self.previous_procedure_transition[1]] = max_NN_value + 1
+                    # NN_values[\
+                    #           np.all(\
+                    #                  procedure_till_max_depth == self.previous_procedure_transition[1:], \
+                    #                  axis=1, \
+                    #                  ) \
+                    #           ] = max_NN_value + 2
                     
                 # 昇順にしか並べられないから反転しておく
                 NN_values = -NN_values
@@ -378,11 +394,12 @@ class puyo_env:
         self.candidate_max_depth = candidate_max_depth
         self.loop_num_till_max_depth = loop_num_till_max_depth
         self.procedure_till_max_depth = procedure_till_max_depth
-        self.loop_num_till_max_depth_abst = \
-            np.concatenate([\
-                            loop_num_till_max_depth.max(axis=1)[:,np.newaxis],\
-                            loop_num_till_max_depth.argmax(axis=1)[:,np.newaxis],
-                            ], axis=1)
+        self.loop_num_till_max_depth_abst = loop_num_till_max_depth.max(axis=1)[:,np.newaxis]
+        # self.loop_num_till_max_depth_abst = \
+        #     np.concatenate([\
+        #                     loop_num_till_max_depth.max(axis=1)[:,np.newaxis],\
+        #                     loop_num_till_max_depth.argmax(axis=1)[:,np.newaxis],
+        #                     ], axis=1)
         if self.to_use_result_till_max_depth:
             self.result_till_max_depth = result_till_max_depth
         return
@@ -417,7 +434,7 @@ class puyo_env:
         loop_num_till_max_depth = self.loop_num_till_max_depth
         procedure_till_max_depth = self.procedure_till_max_depth
             
-        if not(self.is_NN_value_chosen):
+        if not(self.previous_is_NN_value_chosen):
             print("",end="")
         
         # 今回の一手と同じ一手を持つ candidate の candidate_max_depth に対するインデックスを取得
@@ -491,6 +508,10 @@ class puyo_env:
         NN_history = []
         loop_num_history = []
         
+        # 確定連鎖数を基に選んだ手順を消さないためのフラグ.
+        self.previous_is_NN_value_chosen = True
+        self.previous_loop_num_transition = np.zeros(self.num_next_2dots)
+        
         actions_and_loop_nums_till_terminated = None # None で初期化しておいて、 初めてかどうか判定に使う.
         while True:
             
@@ -560,12 +581,12 @@ class puyo_env:
                 best_procedure_index = best_NN_index 
                 is_NN_value_chosen = True
                 current_loop_num_transition_by_NN = loop_num_till_max_depth[best_procedure_index, :]
-                max_loop_num_till_max_depth_by_NN = loop_num_till_max_depth_abst[best_procedure_index, 0]
+                max_loop_num_till_max_depth_by_NN = loop_num_till_max_depth_abst[best_procedure_index]
                 
                 # 確定連鎖数が最も大きいものを特定
                 max_loop_num_till_depth = loop_num_till_max_depth_abst.max()
                 max_loop_num_till_depth_index = np.where(loop_num_till_max_depth_abst == max_loop_num_till_depth)[0]
-                
+            
                 is_max_loop_num_till_depth_index_chosen_randomly = False
                 if len(max_loop_num_till_depth_index) > 1:
                     # たまにNN_valueまで一緒の時がある
@@ -591,6 +612,7 @@ class puyo_env:
                 # 最大確定連鎖がいつ起きるか取得
                 max_loop_num_transition = loop_num_till_max_depth[max_loop_num_till_depth_index,:]
                 max_loop_num_NN_value = NN_values[max_loop_num_till_depth_index]
+                
                     
                 if if_disp:
                     print("    ",end="")
@@ -603,16 +625,16 @@ class puyo_env:
                           .format(max_loop_num_transition, max_loop_num_NN_value), \
                           end="")
                 
-                if max_loop_num_till_depth_index == best_NN_index: # 2つの選択結果が同じだった場合
-                    # LN に基づいて選ばれたことにする.
-                    # 同じ手順を選んだ場合, それは取り除かれちゃいけないから, 
-                    # フラグ: is_NN_value_chosen = self.is_NN_value_chosen = True を立てて,
-                    # 関数 list_candidate のループの最初のトリミング分岐を利用する.
-                    is_NN_value_chosen = False
-                else: # # 2つの選択結果が異なった場合は NN_value と秤にかける
-                    if max_loop_num_till_depth < 1: # 連鎖がない場合
-                        is_NN_value_chosen = True
-                    elif max_loop_num_till_max_depth_by_NN == max_loop_num_till_depth:
+                if max_loop_num_till_depth < 1: # 連鎖がない場合
+                    is_NN_value_chosen = True
+                else: # 連鎖がある場合
+                    if max_loop_num_till_depth_index == best_NN_index: # 2つの選択結果が同じだった場合
+                        # LN に基づいて選ばれたことにする.
+                        # 同じ手順を選んだ場合, それは取り除かれちゃいけないから, 
+                        # フラグ: is_NN_value_chosen = self.previous_is_NN_value_chosen = False を立てて,
+                        # 関数 list_candidate のループの最初のトリミング分岐を利用する.
+                        is_NN_value_chosen = False
+                    elif max_loop_num_till_max_depth_by_NN == max_loop_num_till_depth: # 2つの選択結果が異なった場合は NN_value と秤にかける
                         # 起こす連鎖数が同じなのに違う手順が選ばれたとき
                         if is_max_loop_num_till_depth_index_chosen_randomly:
                             # 最高確定連鎖数 と 最高NN_value を持つケースが2つ以上存在して、
@@ -641,6 +663,11 @@ class puyo_env:
                 chosen_loop_num_transition = loop_num_till_max_depth[best_procedure_index,:] # 連鎖数経緯を取得
                 chosen_NN_value = NN_values[best_procedure_index]
                 action_single_depth = procedure_till_max_depth[best_procedure_index,0] # この一手の procedure を取得
+                    
+                # デバック用に今回の記録を保存.
+                self.previous_is_NN_value_chosen = is_NN_value_chosen
+                self.previous_procedure_transition = procedure_till_max_depth[best_procedure_index,:]
+                self.previous_loop_num_transition = chosen_loop_num_transition
                 
                 NN_history.append(chosen_NN_value)
                 
@@ -667,10 +694,6 @@ class puyo_env:
                             print(", so chose loop_num with NN: {:>.2f}".format(chosen_NN_value), end="")
                             choise_str = "LN{}({:>.1f})>{:>.1f}".format(chosen_loop_num_transition, chosen_NN_value, best_NN_value)
                 
-                self.previous_procedure_transition = procedure_till_max_depth[best_procedure_index,:]
-                self.previous_loop_num_transition = chosen_loop_num_transition
-                
-                self.is_NN_value_chosen = is_NN_value_chosen
                 # おかしなことが起きてないかチェック用. 消しても問題ない.
                 if is_NN_value_chosen:
                     # NNが選んだ手順が採用された場合, その値を記録して, 後の結果と比較する
