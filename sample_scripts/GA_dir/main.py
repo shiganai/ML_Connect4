@@ -46,7 +46,7 @@ score = 0
 lines = 0
 start = time.time()
 for i in range(1):
-    score = preview_ai(env, population.models[0])
+    score = preview_ai(env, population.models[i])
     print("score: {}".format(score))
 print("i: {}, time: {}".format(i, time.time()-start))
 
@@ -64,7 +64,7 @@ while True:
         population.fitnesses[i] = np.array(all_score).mean()
         print("{},".format(i), end="")
     print()
-    print("time: {}".format(time.time()-start))
+    fined = time.time()
     best_model_idx = population.fitnesses.argmax()
     best_model = population.models[best_model_idx]
     score = 0
@@ -74,4 +74,5 @@ while True:
         print("score: {}".format(score))
 
     print(all_scores)
+    print("time: {}".format(fined-start))
     population = Population(env=env, NN=NN, size=pop_size, old_population=population)
