@@ -5,6 +5,7 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 
+from network import NN_direct_LN_exp, NN_each_LN_exp, simple_linear_layer, CNN_symmetry
 from population import Population
 
 from functions import puyo_env
@@ -13,7 +14,8 @@ if_disp_dots=False
 
 import time
 
-env = puyo_env.puyo_env(num_next_2dots=1, num_kind=4)
+env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=10)
+NN = lambda env: CNN_symmetry(env)
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -31,7 +33,7 @@ def preview_ai(env, model):
 def eval_network(env, model):
     all_scores = []
     # ここで平均をとる数が多すぎると, 消極的なモノばかりが採用されるようになる.
-    for ii in range(2):
+    for ii in range(4):
         score, _, _, _ = env.play_one_game(model)
         all_scores.append(score)
     # mean_score = np.array(all_scores).mean()
@@ -39,12 +41,12 @@ def eval_network(env, model):
     
 
 pop_size = 50
-population = Population(env=env, size=pop_size)
+population = Population(env=env, NN=NN, size=pop_size)
 score = 0
 lines = 0
 start = time.time()
 for i in range(1):
-    score = preview_ai(env, population.models[0])
+    score = preview_ai(env, population.models[i])
     print("score: {}".format(score))
 print("i: {}, time: {}".format(i, time.time()-start))
 
@@ -59,10 +61,12 @@ while True:
     for i in range(pop_size):
         all_score = eval_network(env, population.models[i])
         all_scores.append(all_score)
-        population.fitnesses[i] = np.array(all_score).mean()
+        all_score = np.array(all_score)
+        population.fitnesses[i] = all_score.mean()
+        # population.fitnesses[i] = (all_score.max() + all_score.min())/2
         print("{},".format(i), end="")
     print()
-    print("time: {}".format(time.time()-start))
+    fined = time.time()
     best_model_idx = population.fitnesses.argmax()
     best_model = population.models[best_model_idx]
     score = 0
@@ -71,5 +75,9 @@ while True:
         score = preview_ai(env, best_model)
         print("score: {}".format(score))
 
+    all_scores = -np.array(all_scores)
+    sorting_index = all_scores.mean(axis=1).argsort()
+    all_scores = (-all_scores[sorting_index, :]).tolist()
     print(all_scores)
-    population = Population(env=env, size=pop_size, old_population=population)
+    print("time: {}".format(fined-start))
+    population = Population(env=env, NN=NN, size=pop_size, old_population=population)
