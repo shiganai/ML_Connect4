@@ -412,7 +412,7 @@ class CNN_symmetry(nn.Module):
         
         half_kernel_size = max([env.num_vertical-2,env.num_horizontal])
         half_kernel_size = int(half_kernel_size/2)
-        # 奇数辺長の中で最大のものにする. full_kernel_size:3->3, 4->5, 5->5
+        # 奇数辺長の中で最大のものにする. half_kernel_size:2->5, 3->7, 4->9
         full_kernel_size = half_kernel_size*2 + 1
         
         self.half_kernel_size = half_kernel_size
@@ -455,10 +455,12 @@ class CNN_symmetry(nn.Module):
             conv2d_tmp.weight.data = torch.zeros_like(conv2d_tmp.weight)
             
             # 真ん中を中心に linear で置換
+            # ただしど真ん中は0
             conv2d_tmp.weight.data[0,0,:,half_kernel_size:half_kernel_size+connected_threshold]\
                 = linear_tmp.weight
             conv2d_tmp.weight.data[0,0,:,half_kernel_size-connected_threshold+1:half_kernel_size+1]\
                 = torch.flip(linear_tmp.weight,dims=(1,))
+            conv2d_tmp.weight.data[0,0,half_kernel_size,half_kernel_size] = 0
                 
             self.pair_conv2d_dummy_linear.append([conv2d_tmp, linear_tmp])
         
@@ -496,14 +498,18 @@ class CNN_symmetry(nn.Module):
         for pair_conv2d_dummy_linear in self.pair_conv2d_dummy_linear:
             conv2d_tmp =pair_conv2d_dummy_linear[0]
             linear_tmp =pair_conv2d_dummy_linear[1]
+            
             # linear が population などで変更されているはず
             # ただし正に限定しておく
             linear_tmp.weight.data = torch.abs(linear_tmp.weight.data)
+            
             # 真ん中を中心に linear で置換
+            # ただしど真ん中は0
             conv2d_tmp.weight.data[0,0,:,half_kernel_size:half_kernel_size+connected_threshold]\
                 = linear_tmp.weight
             conv2d_tmp.weight.data[0,0,:,half_kernel_size-connected_threshold+1:half_kernel_size+1]\
                 = torch.flip(linear_tmp.weight,dims=(1,))
+            conv2d_tmp.weight.data[0,0,half_kernel_size,half_kernel_size] = 0
         
         color_mat_3d = self.generate_linear_input(dots_kind_matrix_3D)
         

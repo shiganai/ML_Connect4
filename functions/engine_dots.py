@@ -156,6 +156,7 @@ def connect_dots(dots_kind_matrix_3D, if_only_toBeDeleted=True, connected_thresh
     
     for target_layer_index in range(num_layer):
         is_checked_matrix = is_checked_matrix_3D[:,:,target_layer_index]
+        is_stacked_matrix = np.copy(is_checked_matrix)
         up_connected_matrix = up_connected_matrix_3D[:,:,target_layer_index]
         right_connected_matrix = right_connected_matrix_3D[:,:,target_layer_index]
 
@@ -177,6 +178,7 @@ def connect_dots(dots_kind_matrix_3D, if_only_toBeDeleted=True, connected_thresh
             
             # Start while loop until the connection ends up?
             adding_connected_dots = np.array([target_vertical_index, target_horizontal_index, False])
+            is_stacked_matrix[target_vertical_index, target_horizontal_index] = True
     
             while True:
                 # Search not checked adding_connected_dots from bottom, except for the first loop
@@ -192,7 +194,7 @@ def connect_dots(dots_kind_matrix_3D, if_only_toBeDeleted=True, connected_thresh
                     checking_dots_hor = adding_connected_dots[1]
                     adding_connected_dots[2] = True
                 else:
-                    adding_connected_dots = np.unique(adding_connected_dots,axis=0) # Enunique # 毎回するべきかどうか悩む
+                    # adding_connected_dots = np.unique(adding_connected_dots,axis=0) # Enunique # 毎回するべきかどうか悩む
                     not_yet_checked_index = np.where(adding_connected_dots[:,2]==0)
                     if len(not_yet_checked_index[0]) == 0:
                         if if_only_toBeDeleted:
@@ -201,7 +203,9 @@ def connect_dots(dots_kind_matrix_3D, if_only_toBeDeleted=True, connected_thresh
                                 break
                             
                         adding_connected_dots = np.array([adding_connected_dots[:,0], adding_connected_dots[:,1]]) # Remove is_checked_info
-                        # adding_connected_dots = np.unique(adding_connected_dots,axis=1) # Enunique # axisの値が違うことに注意
+                        # adding_connected_dots_uniqued = np.unique(adding_connected_dots,axis=1) # Enunique # axisの値が違うことに注意
+                        # if not(np.array_equal(adding_connected_dots.flatten().sort(), adding_connected_dots_uniqued.flatten().sort())):
+                        #     print("", end="")
                         connected_dots_list.append(adding_connected_dots)
                         
                         if max_connected_num[target_layer_index] < adding_connected_dots.shape[1]:
@@ -220,38 +224,42 @@ def connect_dots(dots_kind_matrix_3D, if_only_toBeDeleted=True, connected_thresh
                     # When the target dot is to be checked whether it is conncedted up or right
                     is_checked_matrix[checking_dots_ver, checking_dots_hor] = True
     
-                    is_nonchecked_up_connected = \
-                        up_connected_matrix[checking_dots_ver, checking_dots_hor] \
-                            and ~is_checked_matrix[checking_dots_ver + 1, checking_dots_hor]
-                    is_nonchecked_right_connected = \
+                    is_nonstacked_right_connected = \
                         right_connected_matrix[checking_dots_ver, checking_dots_hor] \
-                            and ~is_checked_matrix[checking_dots_ver, checking_dots_hor + 1]
-                    is_nonchecked_down_connected = \
+                            and ~is_stacked_matrix[checking_dots_ver, checking_dots_hor + 1]
+                    is_nonstacked_up_connected = \
+                        up_connected_matrix[checking_dots_ver, checking_dots_hor] \
+                            and ~is_stacked_matrix[checking_dots_ver + 1, checking_dots_hor]
+                    is_nonstacked_down_connected = \
                         up_connected_matrix[checking_dots_ver-1, checking_dots_hor] \
-                            and ~is_checked_matrix[checking_dots_ver-1, checking_dots_hor]
+                            and ~is_stacked_matrix[checking_dots_ver-1, checking_dots_hor]
     
-                    if is_nonchecked_right_connected:
+                    if is_nonstacked_right_connected:
                         # When the target dot is connected to right, add the right dots to the list
                         adding_connected_dots = np.vstack([adding_connected_dots,[checking_dots_ver, checking_dots_hor + 1, False]])
+                        is_stacked_matrix[checking_dots_ver, checking_dots_hor + 1] = True
     
-                    if is_nonchecked_up_connected:
+                    if is_nonstacked_up_connected:
                         # When the target dot is connected to upper, add the upeer dots to the list
                         adding_connected_dots = np.vstack([adding_connected_dots,[checking_dots_ver + 1, checking_dots_hor, False]])
+                        is_stacked_matrix[checking_dots_ver + 1, checking_dots_hor] = True
     
-                    if is_nonchecked_down_connected:
+                    if is_nonstacked_down_connected:
                         # When the target dot is connected to upper, add the upeer dots to the list
                         adding_connected_dots = np.vstack([adding_connected_dots,[checking_dots_ver - 1, checking_dots_hor, False]])
+                        is_stacked_matrix[checking_dots_ver-1, checking_dots_hor] = True
                         
                     if (if_only_toBeDeleted) and (checking_dots_hor!=0):
                         # 左下からしらみつぶしに探索していない場合は左に戻ることも考える
                         # ただし一番左端の時は別. だけど -1 で一番右端の情報が来る. そして一番右端はつながっていない認識にしているから (checking_dots_hor!=0) は必要ないかも
-                        is_nonchecked_left_connected = \
+                        is_nonstacked_left_connected = \
                             right_connected_matrix[checking_dots_ver, checking_dots_hor-1] \
-                                and ~is_checked_matrix[checking_dots_ver, checking_dots_hor-1]
+                                and ~is_stacked_matrix[checking_dots_ver, checking_dots_hor-1]
         
-                        if is_nonchecked_left_connected:
+                        if is_nonstacked_left_connected:
                             # When the target dot is connected to right, add the right dots to the list
                             adding_connected_dots = np.vstack([adding_connected_dots,[checking_dots_ver, checking_dots_hor - 1, False]])
+                            is_stacked_matrix[checking_dots_ver, checking_dots_hor-1] = True
                         
                         
         connected_dots_list_3D.append(connected_dots_list)
