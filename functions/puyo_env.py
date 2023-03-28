@@ -14,6 +14,7 @@ class puyo_env:
     # def __init__(self):
                 
     def __init__(self, \
+            mode_str, \
             dots_kind_matrix=None, \
             num_horizontal = eg.num_horizontal_default, \
             num_vertical = eg.num_vertical_default, \
@@ -22,7 +23,6 @@ class puyo_env:
             num_next_2dots = 3, \
             max_num_candidate=None, \
             to_use_result_till_max_depth=False, \
-            to_use_UD_LN=False, \
             ):
         # max_num_candidate に np.Inf を設定すれば, 一切切り捨てないことになる.
             
@@ -35,7 +35,7 @@ class puyo_env:
         self.num_next_2dots = num_next_2dots
         
         self.to_use_result_till_max_depth = to_use_result_till_max_depth
-        self.to_use_UD_LN = to_use_UD_LN
+        self.mode_str = mode_str
         
         self.num_single_depth_pattern = self.num_horizontal + (self.num_horizontal-1)
         self.num_candidate = self.num_single_depth_pattern * 2
@@ -394,7 +394,7 @@ class puyo_env:
                 procedure_till_max_depth = np.delete(procedure_till_max_depth, obj=will_be_terminated_index, axis=0)
                 loop_num_till_max_depth = np.delete(loop_num_till_max_depth, obj=will_be_terminated_index, axis=0)
         
-        if self.to_use_UD_LN:
+        if self.mode_str == "UD_LN":
             # それぞれのラインに各色のドットを1つ落とした時の連鎖数を取得する
             # UD: un-determined, LN: loop_num
             self.UD_LN = np.zeros(shape=(candidate_max_depth.shape[2], self.num_kind * self.num_horizontal), dtype=int)
@@ -589,7 +589,7 @@ class puyo_env:
                     # ゲームオーバーするときは出力が寂しいから loop_num を0であっても表示しておく
                     print("\n current LN was {}".format(chosen_loop_num), end="")
             
-            elif self.to_use_UD_LN:
+            elif self.mode_str == "UD_LN":
                 # 未確定連鎖数を考慮する場合
                 # 基本的に連鎖数が高いものを選択する
                 # 連鎖数が同じ場合は, NN_value を参考にする
@@ -753,7 +753,7 @@ class puyo_env:
                 if if_disp:
                     print("  LN: {}".format(chosen_loop_num_transition), end="")
             
-            else:
+            elif self.mode_str == "NN":
                 # ゲームオーバーまでの経緯が決定されていなければ...
                 
                 if if_disp:
@@ -892,7 +892,9 @@ class puyo_env:
                     # NNが選んだ手順が採用された場合, その値を記録して, 後の結果と比較する
                     if NN_values[best_procedure_index] != best_NN_value:
                         raise Exception('NN_values[best_procedure_index] != best_NN_value even though is_NN_value_chosen is True')
-            
+            else:
+                raise Exception("mode_str: "+self.mode_str+" is undefined")
+                
             # =============================================================================
             # ここまでで action_single_depth が NN_value との秤か, actions_and_loop_nums_till_terminated かで決められているはず.
             # =============================================================================
