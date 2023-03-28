@@ -132,7 +132,7 @@ class Population:
                 base_noise = torch.randint(0,2,size=weight_noise_size)
                 small_noise = torch.rand(size=weight_noise_size)
                 # noise = (base_noise*2 - 1) + (small_noise * 2 - 1) * 0.1
-                noise = (base_noise*2 - 1) * ( 0.9 + small_noise * 0.201 )
+                noise = (base_noise*2 - 1) * ( 0.9 + small_noise * 0.21 )
                                
                 if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
                     model.all_layers[layer_index].weight.data[prob < mutation_prob] = \
@@ -154,7 +154,7 @@ class Population:
                     base_noise = torch.randint(0,2,size=bias_noise_size)
                     small_noise = torch.rand(size=bias_noise_size)
                     # noise = (base_noise*2 - 1) + (small_noise * 2 - 1) * 0.1
-                    noise = (base_noise*2 - 1) * ( 0.9 + small_noise * 0.201 )
+                    noise = (base_noise*2 - 1) * ( 0.9 + small_noise * 0.21 )
                     
                     if len(model.all_layers[layer_index].weight.shape) == 2: # Linear
                         model.all_layers[layer_index].bias.data[prob < mutation_prob] = \

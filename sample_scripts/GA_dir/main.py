@@ -33,7 +33,7 @@ def preview_ai(env, model):
 def eval_network(env, model):
     all_scores = []
     # ここで平均をとる数が多すぎると, 消極的なモノばかりが採用されるようになる.
-    for ii in range(3):
+    for ii in range(4):
         score, _, _, _ = env.play_one_game(model)
         all_scores.append(score)
     # mean_score = np.array(all_scores).mean()
@@ -61,7 +61,9 @@ while True:
     for i in range(pop_size):
         all_score = eval_network(env, population.models[i])
         all_scores.append(all_score)
-        population.fitnesses[i] = np.array(all_score).mean()
+        all_score = np.array(all_score)
+        population.fitnesses[i] = all_score.mean()
+        # population.fitnesses[i] = (all_score.max() + all_score.min())/2
         print("{},".format(i), end="")
     print()
     fined = time.time()
@@ -73,6 +75,9 @@ while True:
         score = preview_ai(env, best_model)
         print("score: {}".format(score))
 
+    all_scores = -np.array(all_scores)
+    sorting_index = all_scores.mean(axis=1).argsort()
+    all_scores = (-all_scores[sorting_index, :]).tolist()
     print(all_scores)
     print("time: {}".format(fined-start))
     population = Population(env=env, NN=NN, size=pop_size, old_population=population)
