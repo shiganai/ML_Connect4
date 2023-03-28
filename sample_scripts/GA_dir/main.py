@@ -14,7 +14,9 @@ if_disp_dots=False
 
 import time
 
-env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=10)
+# env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=10)
+# env = puyo_env.puyo_env(num_next_2dots=1, num_kind=4, max_num_candidate=np.Inf, to_use_UD_LN=True)
+env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=6, to_use_UD_LN=True)
 NN = lambda env: CNN_symmetry(env)
 
 # if gpu is to be used

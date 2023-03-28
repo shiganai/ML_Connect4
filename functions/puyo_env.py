@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from functions import UI_dots as ui
 from functions import engine_dots as eg
+import math
 
 import torch
 device = 'cpu'
@@ -18,8 +19,11 @@ class puyo_env:
             num_vertical = eg.num_vertical_default, \
             num_kind = eg.num_kind_default, \
             num_dummy_kind = eg.num_dummy_kind_default, \
-            num_next_2dots = 3,
-            max_num_candidate=None):
+            num_next_2dots = 3, \
+            max_num_candidate=None, \
+            to_use_result_till_max_depth=False, \
+            to_use_UD_LN=False, \
+            ):
         # max_num_candidate に np.Inf を設定すれば, 一切切り捨てないことになる.
             
         print("construct of puyo_env is called")
@@ -29,6 +33,9 @@ class puyo_env:
         self.num_kind = num_kind
         self.num_dummy_kind = num_dummy_kind
         self.num_next_2dots = num_next_2dots
+        
+        self.to_use_result_till_max_depth = to_use_result_till_max_depth
+        self.to_use_UD_LN = to_use_UD_LN
         
         self.num_single_depth_pattern = self.num_horizontal + (self.num_horizontal-1)
         self.num_candidate = self.num_single_depth_pattern * 2
@@ -50,16 +57,15 @@ class puyo_env:
 # =============================================================================
 # =============================================================================
 
-    def reset(self, to_use_result_till_max_depth):
+    def reset(self):
         # print("reset of puyo_env is called")
         
         # self.step()の処理を is_play_one_game_called のフラグによって管理しているからこの初期化は重要
         self.is_play_one_game_called = False
-        self.to_use_result_till_max_depth = to_use_result_till_max_depth
         
         self.turn_count = 0 # temporary count for stop at some count
         self.termination_determined = False
-        if to_use_result_till_max_depth:
+        if self.to_use_result_till_max_depth:
             self.result_till_max_depth = None # メモリ食うけど、落とす処理、消す処理が思いから残しておく.
         
         self.reset_kind_matrix()
@@ -387,8 +393,27 @@ class puyo_env:
                 candidate_max_depth = np.delete(candidate_max_depth, obj=will_be_terminated_index, axis=2)
                 procedure_till_max_depth = np.delete(procedure_till_max_depth, obj=will_be_terminated_index, axis=0)
                 loop_num_till_max_depth = np.delete(loop_num_till_max_depth, obj=will_be_terminated_index, axis=0)
-                
         
+        if self.to_use_UD_LN:
+            # それぞれのラインに各色のドットを1つ落とした時の連鎖数を取得する
+            # UD: un-determined, LN: loop_num
+            self.UD_LN = np.zeros(shape=(candidate_max_depth.shape[2], self.num_kind * self.num_horizontal), dtype=int)
+            for ii in range(candidate_max_depth.shape[2]):
+                # eg.get_UD_candidate_3D は一色だけ落としたときに, １つ以上消える組み合わせの,
+                # その落とした盤面の１色目だけを消したやつを返す. 落としてもない.
+                # 一色だけ落とした時は, その色の物が１連鎖目では必ず消えて, 他のものは消えないから,
+                # 最大連鎖数はこれから把握する.
+                UD_candidate = eg.get_UD_candidate_3D(dots_kind_matrix=candidate_max_depth[:,:,ii])
+                if UD_candidate.shape[2] > 0:
+                    _, loop_num, _ = \
+                        eg.delete_and_fall_dots_to_the_end(UD_candidate, if_return_only_result=True)
+                    
+                    # 落とした一色の連鎖が最初に起きた分を考慮する.
+                    loop_num = loop_num + 1
+                    loop_num.sort()
+                    self.UD_LN[ii,0:loop_num.shape[0]] = np.flip(loop_num)
+                
+            
         
         # 次の先読み用に self を更新
         self.candidate_max_depth = candidate_max_depth
@@ -490,8 +515,10 @@ class puyo_env:
 # =============================================================================
 # =============================================================================
 
-    def play_one_game(self, model=None, if_disp=False, to_use_result_till_max_depth=False, to_use_ratio=False):
-        self.reset(to_use_result_till_max_depth)
+    def play_one_game(self, model=None, \
+                      if_disp=False, \
+                      to_use_ratio=False):
+        self.reset()
         self.is_play_one_game_called = True
         self.model = model
         sum_reward = 0.1
@@ -511,6 +538,8 @@ class puyo_env:
         # 確定連鎖数を基に選んだ手順を消さないためのフラグ.
         self.previous_is_NN_value_chosen = True
         self.previous_loop_num_transition = np.zeros(self.num_next_2dots)
+        self.previous_max_UD_LN = 0
+        self.past_max_UD_LN = 0
         
         actions_and_loop_nums_till_terminated = None # None で初期化しておいて、 初めてかどうか判定に使う.
         while True:
@@ -559,7 +588,171 @@ class puyo_env:
                 if if_disp:
                     # ゲームオーバーするときは出力が寂しいから loop_num を0であっても表示しておく
                     print("\n current LN was {}".format(chosen_loop_num), end="")
+            
+            elif self.to_use_UD_LN:
+                # 未確定連鎖数を考慮する場合
+                # 基本的に連鎖数が高いものを選択する
+                # 連鎖数が同じ場合は, NN_value を参考にする
+                is_NN_value_chosen = False
                 
+                # 確定連鎖の最大値を取得
+                max_loop_num_till_depth = loop_num_till_max_depth_abst.max()
+                
+                # 未確定連鎖の最大値を取得
+                max_UD_LN = self.UD_LN.max()
+                
+                # if self.previous_max_UD_LN > max_UD_LN:
+                #     print("",end="")
+                
+                compared_UD_LN_length = 0
+                max_compared_UD_LN_length = np.Inf
+                is_LN_used = False
+                is_UD_LN_used = False
+                if (max_loop_num_till_depth == 0) and (max_UD_LN == 0):
+                    # もしまだ何も連鎖が見つかっていない時は, NN_value に基づいて探す
+                    is_LN_used = False
+                    NN_values = model(candidate_max_depth).to('cpu').detach().numpy().copy().flatten()
+                    
+                    NN_values = np.array(NN_values)
+                    # NNの計算値が最も大きいものを特定
+                    best_NN_value = NN_values.max()
+                    best_NN_index = np.where(NN_values == best_NN_value)[0]
+                    if len(best_NN_index) > 1:
+                        best_NN_index = best_NN_index[np.random.randint(0, len(best_NN_index))]
+                    else:
+                        best_NN_index = best_NN_index[0]
+                    
+                    
+                    # LN の判断結果
+                    best_procedure_index = best_NN_index
+                    
+                else:
+                    is_LN_used = True
+                    
+                    # ターン数 + 既に確定した数 + これから引くのにかかる期待値 * 2
+                    if (self.turn_count + self.num_next_2dots + math.ceil(self.num_next_2dots * 2 / self.num_kind)*2 \
+                        > self.turn_count_threshold) \
+                            and ( self.past_max_UD_LN == max_loop_num_till_depth ):
+                        # もし終わり間近で, max_UD_LN が減少していなければ打つ
+                        is_UD_LN_used = False
+                        loop_num_till_UD = loop_num_till_max_depth.max(axis=1)[:,np.newaxis]
+                        
+                    elif (max_UD_LN == max_loop_num_till_depth) and (self.num_next_2dots > 1):
+                        # もし確定連鎖数と未確定連鎖数が同じ場合は
+                        # もう少し育てたいから, この手順で連鎖を打つのは避ける
+                        # でも打てる手があったら手元に残しておきたい
+                        # 確定した中では遅いやつのほうが良いだと良い
+                        max_loop_num_after_single = loop_num_till_max_depth[:,1:]
+                        
+                        max_loop_num_after_single_sort_index = (-max_loop_num_after_single).argsort(axis=1)
+                        max_loop_num_with_position = np.vstack([\
+                                                                     max_loop_num_after_single.max(axis=1), \
+                                                                     max_loop_num_after_single_sort_index[:,0] + 1, \
+                                                                     ]).transpose()
+                        loop_num_till_UD = np.concatenate([\
+                                                           max_loop_num_with_position, \
+                                                           self.UD_LN, \
+                                                           ], axis=1)
+                        is_UD_LN_used = True
+                    elif ( (max_UD_LN > max_loop_num_till_depth) and (self.num_next_2dots > 1) ) \
+                            or ( (max_UD_LN >= max_loop_num_till_depth) and (self.num_next_2dots == 1) ):
+                        # もし未確定連鎖のほうが大きかったら成長を優先したいから, (1つしかドットを与えられない場合は同じでも成長させたい)
+                        # loop_num_till_max_depth と self.UD_LN を連結する
+                        # loop_num_till_UD = np.concatenate([\
+                        #                                           loop_num_till_max_depth, \
+                        #                                           self.UD_LN,\
+                        #                                           ], axis=1)
+                        is_UD_LN_used = True
+                        
+                        # ソートしない. self.UD_LN は puyo_env 内で既にソート済み
+                        loop_num_till_UD = self.UD_LN # 複製しなくて十分
+                        
+                    else:
+                        is_UD_LN_used = False
+                        loop_num_till_UD = loop_num_till_max_depth.max(axis=1)[:,np.newaxis]
+                    
+                    remaining_index = np.array(range(loop_num_till_UD.shape[0]))
+                    remaining_loop_num_till_UD = np.copy(loop_num_till_UD)
+                    
+                    best_procedure_index = None
+                    for ii in range(loop_num_till_UD.shape[1]):
+                        compared_UD_LN_length = ii+1
+                        if compared_UD_LN_length >= max_compared_UD_LN_length:
+                            break
+                        
+                        # 残ったものの中での最大値
+                        max_loop_num_till_depth = remaining_loop_num_till_UD[:,ii].max()
+                        if max_loop_num_till_depth == 0:
+                            break
+                        
+                        # 残ったものに対するインデックス
+                        max_loop_num_till_depth_index = np.where(remaining_loop_num_till_UD[:,ii] == max_loop_num_till_depth)[0]
+                        
+                        if len(max_loop_num_till_depth_index) > 1:
+                            # 連鎖数が同じ場合はトリミングして次の連鎖数へ
+                            remaining_index = remaining_index[max_loop_num_till_depth_index]
+                            remaining_loop_num_till_UD = remaining_loop_num_till_UD[max_loop_num_till_depth_index,:]
+                            
+                            if not(is_UD_LN_used):
+                                # もし確定連鎖にだけ基づいているのなら, 最大連鎖数だけの比較で, 後は NN_value に従う
+                                break
+                        else:
+                            max_loop_num_till_depth_index = max_loop_num_till_depth_index[0]
+                            best_procedure_index = remaining_index[max_loop_num_till_depth_index]
+                            break
+                    
+                    if best_procedure_index is None:
+                        # 連鎖数を複数比べて, 最後まで一緒で, best_procedure_index が設定されていない時
+                        # NN_value を基準に決める
+                        
+                        NN_values = model(candidate_max_depth[:,:,remaining_index]).to('cpu').detach().numpy().copy().flatten()
+                        
+                        NN_values = np.array(NN_values)
+                        # NNの計算値が最も大きいものを特定
+                        best_NN_value = NN_values.max()
+                        best_NN_index = np.where(NN_values == best_NN_value)[0]
+                        if len(best_NN_index) > 1:
+                            best_NN_index = best_NN_index[np.random.randint(0, len(best_NN_index))]
+                        else:
+                            best_NN_index = best_NN_index[0]
+                            
+                        best_procedure_index = remaining_index[best_NN_index]
+                    
+                
+                chosen_loop_num = loop_num_till_max_depth[best_procedure_index,0] # この一手の連鎖数を取得
+                action_single_depth = procedure_till_max_depth[best_procedure_index,0] # この一手の procedure を取得
+                
+                # トリミングされないようにフラグを立てておく
+                # ただし, next_2dots によって max_UD_LN に基づいて手順を採用しても,
+                # 連鎖を打たざるを得ない状況, もしくは連鎖尾をつぶしてしまう状況になることがある
+                # その時は max_UD_LN が減少する.
+                self.previous_is_NN_value_chosen = is_LN_used
+                self.previous_procedure_transition = procedure_till_max_depth[best_procedure_index,:]
+                self.previous_max_UD_LN = max_UD_LN
+                if self.past_max_UD_LN < max_UD_LN:
+                    self.past_max_UD_LN = max_UD_LN
+                    
+                
+                if is_LN_used:
+                    if is_UD_LN_used:
+                        chosen_loop_num_transition = np.concatenate([\
+                                                                     loop_num_till_max_depth[best_procedure_index,:], \
+                                                                     np.array([-1]),\
+                                                                     loop_num_till_UD[best_procedure_index, 0:compared_UD_LN_length], \
+                                                                     ],axis=0) # 連鎖数経緯を取得
+                            
+                        choise_str = "UD LN:{}".format(loop_num_till_UD[best_procedure_index,0])
+                    else:
+                        chosen_loop_num_transition = loop_num_till_max_depth[best_procedure_index,:]
+                        choise_str = "D LN:{}".format(max_loop_num_till_depth)
+                else:
+                    chosen_loop_num_transition = loop_num_till_max_depth[best_procedure_index,:]
+                    choise_str = "NN:{:.2f}".format(best_NN_value)
+                
+                
+                if if_disp:
+                    print("  LN: {}".format(chosen_loop_num_transition), end="")
+            
             else:
                 # ゲームオーバーまでの経緯が決定されていなければ...
                 
@@ -837,3 +1030,14 @@ class puyo_env:
                               axis=1)
         
         return dots_kind_matrix_3D
+    
+    
+# =============================================================================
+# =============================================================================
+# =============================================================================
+# =============================================================================
+# # # #     
+# =============================================================================
+# =============================================================================
+# =============================================================================
+# =============================================================================
