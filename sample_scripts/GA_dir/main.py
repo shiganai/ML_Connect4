@@ -15,10 +15,20 @@ if_disp_dots=False
 import time
 
 # env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=10, mode_str="NN")
-env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=np.Inf, mode_str="UD_LN")
+# env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=np.Inf, mode_str="UD_LN")
 # env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=10, mode_str="UD_LN")
 # env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=np.Inf, mode_str="D_LN")
-env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=100, mode_str="D_LN")
+# env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=100, mode_str="D_LN")
+
+# The below two options runs at almost same speed
+# env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=np.Inf, mode_str="UD_LN")
+# env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=300, mode_str="D_LN")
+
+# The below two options runs at almost same speed of 1 second / step until 36 step
+env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=7, mode_str="UD_LN")
+env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=80, mode_str="D_LN")
+
+
 NN = lambda env: CNN_symmetry(env)
 
 # if gpu is to be used
@@ -44,7 +54,7 @@ def eval_network(env, model):
     return all_scores
     
 
-pop_size = 50
+pop_size = 10
 population = Population(env=env, NN=NN, size=pop_size)
 score = 0
 lines = 0
@@ -80,9 +90,9 @@ while True:
         score = preview_ai(env, best_model)
         print("score: {}".format(score))
 
-    all_scores = -np.array(all_scores)
-    sorting_index = all_scores.mean(axis=1).argsort()
-    all_scores = (-all_scores[sorting_index, :]).tolist()
+    all_scores = np.array(all_scores)
+    sorting_index = (-population.fitnesses).argsort()
+    all_scores = (all_scores[sorting_index, :]).tolist()
     print(all_scores)
     print("time: {}".format(fined-start))
     population = Population(env=env, NN=NN, size=pop_size, old_population=population)
