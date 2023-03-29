@@ -421,8 +421,6 @@ class puyo_env:
                     loop_num = loop_num + 1
                     loop_num.sort()
                     self.UD_LN[ii,0:loop_num.shape[0]] = np.flip(loop_num)
-                
-            
         
         # 次の先読み用に self を更新
         self.candidate_max_depth = candidate_max_depth
@@ -612,13 +610,11 @@ class puyo_env:
                 # 未確定連鎖の最大値を取得
                 max_UD_LN = self.UD_LN.max()
                 
-                # if self.previous_max_UD_LN > max_UD_LN:
-                #     print("",end="")
-                
                 compared_UD_LN_length = 0
                 max_compared_UD_LN_length = np.Inf
                 is_LN_used = False
                 is_UD_LN_used = False
+                is_earlier_chosen = False
                 if (max_loop_num_till_depth == 0) and (max_UD_LN == 0):
                     # もしまだ何も連鎖が見つかっていない時は, NN_value に基づいて探す
                     is_LN_used = False
@@ -639,33 +635,80 @@ class puyo_env:
                     
                 else:
                     is_LN_used = True
+                    is_earlier_chosen = False
                     
-                    # ターン数 + 既に確定した数 + これから引くのにかかる期待値 * 2
-                    if (self.turn_count + self.num_next_2dots + math.ceil(self.num_next_2dots * 2 / self.num_kind)*2 \
-                        > self.turn_count_threshold) \
-                            and ( self.past_max_UD_LN == max_loop_num_till_depth ):
-                        # もし終わり間近で, max_UD_LN が減少していなければ打つ
+                    # ターン数 + 既に確定した数 * 1
+                    if self.turn_count + self.num_next_2dots * 1 > self.turn_count_threshold:
+                        # 終わり直前なら...
+                        # 同じ連鎖数でも手順が早いものを選ぶ
                         is_UD_LN_used = False
-                        loop_num_till_UD = loop_num_till_max_depth.max(axis=1)[:,np.newaxis]
+                        is_earlier_chosen = True
                         
-                    elif (max_UD_LN == max_loop_num_till_depth) and (self.num_next_2dots > 1):
-                        # もし確定連鎖数と未確定連鎖数が同じ場合は
-                        # もう少し育てたいから, この手順で連鎖を打つのは避ける
-                        # でも打てる手があったら手元に残しておきたい
-                        # 確定した中では遅いやつのほうが良いだと良い
-                        max_loop_num_after_single = loop_num_till_max_depth[:,1:]
+                        max_loop_num_tobe_considered = np.copy(loop_num_till_max_depth)
+                        # 大きい順に並べた場合の手順数を取得
+                        max_loop_num_tobe_considered_sort_index = (-max_loop_num_tobe_considered).argsort(axis=1)
+                        # 手順数が小さいときものを大きい数字としたいから正負反転
+                        max_loop_num_tobe_considered_sort_index = -max_loop_num_tobe_considered_sort_index 
                         
-                        max_loop_num_after_single_sort_index = (-max_loop_num_after_single).argsort(axis=1)
                         max_loop_num_with_position = np.vstack([\
-                                                                     max_loop_num_after_single.max(axis=1), \
-                                                                     max_loop_num_after_single_sort_index[:,0] + 1, \
-                                                                     ]).transpose()
-                        loop_num_till_UD = np.concatenate([\
-                                                           max_loop_num_with_position, \
-                                                           self.UD_LN, \
-                                                           ], axis=1)
-                        is_UD_LN_used = True
-                    elif ( (max_UD_LN > max_loop_num_till_depth) and (self.num_next_2dots > 1) ) \
+                                                                max_loop_num_tobe_considered.max(axis=1), \
+                                                                max_loop_num_tobe_considered_sort_index[:,0] + 1, \
+                                                                ]).transpose()
+                            
+                        loop_num_till_UD = max_loop_num_with_position
+                    elif (self.turn_count + self.num_next_2dots * 2 > self.turn_count_threshold)\
+                            and (self.turn_count + self.num_next_2dots * 1 <= self.turn_count_threshold):
+                        # 終わりが近いが直前でないなら...
+                        if max_loop_num_till_depth >= self.past_max_UD_LN:
+                            # 今まで未確定最大連鎖数だったものが確定連鎖になったら, 出来るだけ早く打つ
+                            is_UD_LN_used = False
+                            is_earlier_chosen = True
+                            
+                            
+                            # 同じ連鎖数でも手順が早いものを選ぶ
+                            max_loop_num_tobe_considered = np.copy(loop_num_till_max_depth)
+                            # 大きい順に並べた場合の手順数を取得
+                            max_loop_num_tobe_considered_sort_index = (-max_loop_num_tobe_considered).argsort(axis=1)
+                            # 手順数が小さいときものを大きい数字としたいから正負反転
+                            max_loop_num_tobe_considered_sort_index = -max_loop_num_tobe_considered_sort_index 
+                            
+                            max_loop_num_with_position = np.vstack([\
+                                                                    max_loop_num_tobe_considered.max(axis=1), \
+                                                                    max_loop_num_tobe_considered_sort_index[:,0] + 1, \
+                                                                    ]).transpose()
+                            
+                            
+                            loop_num_till_UD = max_loop_num_with_position
+                        else:
+                            # 未確定最大連鎖数がまだ確定していないなら, 
+                            # 確定連鎖数が一番大きく, かつ手順が後ろのものを選ぶ
+                            is_UD_LN_used = False
+                            is_earlier_chosen = False
+                            
+                            max_loop_num_tobe_considered = np.copy(loop_num_till_max_depth[:,1:])
+                            # 最後まで連鎖は一切打ちたくない
+                            if np.all( loop_num_till_max_depth[:,0]>0 ):
+                                # でも連鎖が避けられない場合がある
+                                # 出来るだけ連鎖が少ないものを選ぶ.
+                                max_loop_num_tobe_considered[ :, :] = -max_loop_num_tobe_considered
+                                if if_disp:
+                                    print('  Cannot avoid loop num > 0... ', end='')
+                            else:
+                                max_loop_num_tobe_considered[ loop_num_till_max_depth[:,0]>0, :] = -1
+                            
+                            # 大きい順に並べた場合の手順数を取得
+                            max_loop_num_tobe_considered_sort_index = (-max_loop_num_tobe_considered).argsort(axis=1)
+                            max_loop_num_with_position = np.vstack([\
+                                                                         max_loop_num_tobe_considered.max(axis=1), \
+                                                                         max_loop_num_tobe_considered_sort_index[:,0] + 1, \
+                                                                         ]).transpose()
+                            loop_num_till_UD = np.concatenate([\
+                                                               max_loop_num_with_position, \
+                                                               self.UD_LN, \
+                                                               ], axis=1)
+                            None
+                        
+                    elif ( (max_UD_LN >= max_loop_num_till_depth) and (self.num_next_2dots > 1) ) \
                             or ( (max_UD_LN >= max_loop_num_till_depth) and (self.num_next_2dots == 1) ):
                         # もし未確定連鎖のほうが大きかったら成長を優先したいから, (1つしかドットを与えられない場合は同じでも成長させたい)
                         # loop_num_till_max_depth と self.UD_LN を連結する
@@ -674,14 +717,41 @@ class puyo_env:
                         #                                           self.UD_LN,\
                         #                                           ], axis=1)
                         is_UD_LN_used = True
+                        is_earlier_chosen = False
                         
                         # ソートしない. self.UD_LN は puyo_env 内で既にソート済み
                         loop_num_till_UD = self.UD_LN # 複製しなくて十分
                         
                     else:
-                        is_UD_LN_used = False
-                        loop_num_till_UD = loop_num_till_max_depth.max(axis=1)[:,np.newaxis]
-                    
+                        # 終わり間近ではなく, かつ max_UD_LN も大きくない場合
+                        # もう少し育てたいから, 少なくともこの手順で連鎖を打つのは避ける
+                        # でも打てる手があったら手元に残しておきたい
+                        # 確定した中では遅いやつのほうが良いだと良い
+                        is_UD_LN_used = True
+                        is_earlier_chosen = False
+                        
+                        max_loop_num_tobe_considered = loop_num_till_max_depth[:,1:]
+                        # 最後まで連鎖は一切打ちたくない
+                        if np.all( loop_num_till_max_depth[:,0]>0 ):
+                            # でも連鎖が避けられない場合がある
+                            # 出来るだけ連鎖が少ないものを選ぶ.
+                            max_loop_num_tobe_considered[ :, :] = -max_loop_num_tobe_considered
+                            if if_disp:
+                                print('  Cannot avoid loop num > 0... ', end='')
+                        else:
+                            max_loop_num_tobe_considered[ loop_num_till_max_depth[:,0]>0, :] = -1
+                        
+                        # 大きい順に並べた場合の手順数を取得
+                        max_loop_num_tobe_considered_sort_index = (-max_loop_num_tobe_considered).argsort(axis=1)
+                        max_loop_num_with_position = np.vstack([\
+                                                                     max_loop_num_tobe_considered.max(axis=1), \
+                                                                     max_loop_num_tobe_considered_sort_index[:,0] + 1, \
+                                                                     ]).transpose()
+                        loop_num_till_UD = np.concatenate([\
+                                                           max_loop_num_with_position, \
+                                                           self.UD_LN, \
+                                                           ], axis=1)
+                        
                     remaining_index = np.array(range(loop_num_till_UD.shape[0]))
                     remaining_loop_num_till_UD = np.copy(loop_num_till_UD)
                     
@@ -740,29 +810,39 @@ class puyo_env:
                 self.previous_is_NN_value_chosen = not(is_LN_used)
                 self.previous_procedure_transition = procedure_till_max_depth[best_procedure_index,:]
                 self.previous_max_UD_LN = max_UD_LN
+                
                 if self.past_max_UD_LN < max_UD_LN:
                     self.past_max_UD_LN = max_UD_LN
+                elif self.past_max_UD_LN < loop_num_till_max_depth_abst.max():
+                    self.past_max_UD_LN = loop_num_till_max_depth_abst.max()
                     
                 
-                if is_LN_used:
-                    if is_UD_LN_used:
-                        chosen_loop_num_transition = np.concatenate([\
-                                                                     loop_num_till_max_depth[best_procedure_index,:], \
-                                                                     np.array([-1]),\
-                                                                     loop_num_till_UD[best_procedure_index, 0:compared_UD_LN_length], \
-                                                                     ],axis=0) # 連鎖数経緯を取得
-                            
-                        choise_str = "UD LN:{}".format(loop_num_till_UD[best_procedure_index,0])
-                    else:
-                        chosen_loop_num_transition = loop_num_till_max_depth[best_procedure_index,:]
-                        choise_str = "D LN:{}".format(max_loop_num_till_depth)
-                else:
-                    chosen_loop_num_transition = loop_num_till_max_depth[best_procedure_index,:]
-                    choise_str = "NN:{:.2f}".format(best_NN_value)
-                
-                
                 if if_disp:
-                    print("  LN: {}".format(chosen_loop_num_transition), end="")
+                    if is_LN_used:
+                        if is_earlier_chosen:
+                            print(", is_earlier_chosen", end='')
+                            
+                        if is_UD_LN_used:
+                            # chosen_loop_num_transition = np.concatenate([\
+                            #                                              loop_num_till_max_depth[best_procedure_index,:], \
+                            #                                              np.array([-1]),\
+                            #                                              loop_num_till_UD[best_procedure_index, 0:compared_UD_LN_length], \
+                            #                                              ],axis=0) # 連鎖数経緯を取得
+                                
+                            print("  D_LN:{} with UD_LN:{}"\
+                                  .format(loop_num_till_max_depth[best_procedure_index,:], \
+                                          self.UD_LN[best_procedure_index,0:compared_UD_LN_length]), end="")
+                            choise_str = "UD LN:{}".format(self.UD_LN[best_procedure_index,0])
+                        else:
+                            # chosen_loop_num_transition = loop_num_till_max_depth[best_procedure_index,:]
+                            print("  D_LN: {}".format(loop_num_till_max_depth[best_procedure_index,:]), end="")
+                            choise_str = "D LN:{}".format(max_loop_num_till_depth)
+                    else:
+                        # chosen_loop_num_transition = loop_num_till_max_depth[best_procedure_index,:]
+                        print("  D_LN: {} with NN:{:.1f}"\
+                              .format(loop_num_till_max_depth[best_procedure_index,:], best_NN_value), end="")
+                        choise_str = "NN:{:.2f}".format(best_NN_value)
+                    
                     
             elif self.mode_str == "D_LN":
                 # 未確定連鎖数を考慮する場合
