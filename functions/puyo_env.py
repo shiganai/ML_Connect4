@@ -1175,7 +1175,11 @@ class puyo_env:
                 dots_transition_current_turn = dots_transition_current_turn[0]
                 
                 # 確定している2ドットを右上に追加して, adding_transition として保存
-                adding_transition = self.add_next_2dots_multi_depth_to_transition(candidate_single_depth[:,:,action_single_depth])
+                adding_transition = self.add_next_2dots_multi_depth_to_transition\
+                    (\
+                     candidate_single_depth[:,:,action_single_depth], \
+                     procedure_till_max_depth[best_procedure_index,:] \
+                    )
                 if dots_transition_only_result is None:
                     dots_transition_only_result = adding_transition
                 else:
@@ -1210,7 +1214,11 @@ class puyo_env:
                     title_for_dots_transition_3D_list.extend(title_for_dots_transition_current_turn)
                     
                     # 確定している2ドットを右上に追加して, adding_transition として保存
-                    adding_transition = self.add_next_2dots_multi_depth_to_transition(dots_transition_current_turn)
+                    adding_transition = self.add_next_2dots_multi_depth_to_transition\
+                        (\
+                         dots_transition_current_turn, \
+                         procedure_till_max_depth[best_procedure_index,:] \
+                         )
                     if dots_transition_3D_list[-1] == []:
                         # すでに初期化されていた場合. 2回連続で連鎖すると起きる
                         dots_transition_3D_list[-1] = adding_transition
@@ -1246,27 +1254,30 @@ class puyo_env:
         return max_reward, dots_transition_only_result, dots_transition_3D_list, title_for_dots_transition_3D_list
         # return sum_reward, dots_transition
         
-    def add_next_2dots_multi_depth_to_transition(self, dots_kind_matrix_3D):
+    def add_next_2dots_multi_depth_to_transition(self, dots_kind_matrix_3D, chosen_procedure_till_max_depth):
         dots_kind_matrix_3D = eg.convet_2D_dots_to_3D(dots_kind_matrix_3D)
         
         if self.num_next_2dots > 1:
-            # 2つ目以降の2ドットを追加する用の座標を追加
-            dots_kind_matrix_3D = np.concatenate([\
-                                                  dots_kind_matrix_3D, \
-                                                  np.zeros_like(dots_kind_matrix_3D[0:2,:,:]),\
-                                                  ], axis=0)
-            
-            num_layer = dots_kind_matrix_3D.shape[2]
-            horizontal_index = 0
-            next_2dots = self.next_2dots.transpose()
             for depth_index in range(1, self.num_next_2dots):
-                # はじめの2ドットは飛ばして次のから右上に追加
-                horizontal_index -= 1
-                dots_kind_matrix_3D[-1, [horizontal_index*3 + 1, horizontal_index*3 + 2], :] = \
-                    np.repeat(\
-                              next_2dots[depth_index,:,np.newaxis],
-                              num_layer,
-                              axis=1)
+                
+                # ダミーの空盤面を作る. 最低限の縦サイズ:2
+                dummy = np.zeros(shape=(\
+                                        2,\
+                                        dots_kind_matrix_3D.shape[1],\
+                                        ), dtype=int)
+                dummy = eg.get_candidate_3D(dummy, self.next_2dots[:,depth_index])
+                dummy = dummy[:,:,chosen_procedure_till_max_depth[depth_index]]
+                # トリミングすると dots_kind_matrix_3D のサイズが今までと変わっちゃって,
+                # dots_transition に np.concatenate 出来なくなる.
+                # if np.all(dummy[-1,:]==0):
+                #     dummy = dummy[np.newaxis,-2,:]
+                dummy = np.repeat(dummy[:,:,np.newaxis], repeats=dots_kind_matrix_3D.shape[2], axis=2)
+                
+                # dummy を一番上に加える
+                dots_kind_matrix_3D = np.concatenate([\
+                                                      dots_kind_matrix_3D, \
+                                                      dummy, \
+                                                      ], axis=0)
         
         return dots_kind_matrix_3D
     
