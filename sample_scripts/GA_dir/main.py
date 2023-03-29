@@ -26,7 +26,7 @@ import time
 
 # The below two options runs at almost same speed of 1 second / step until 36 step
 env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=7, mode_str="UD_LN")
-env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=80, mode_str="D_LN")
+# env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=80, mode_str="D_LN")
 
 
 NN = lambda env: CNN_symmetry(env)
