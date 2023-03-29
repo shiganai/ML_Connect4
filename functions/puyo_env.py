@@ -656,7 +656,7 @@ class puyo_env:
                                                                 ]).transpose()
                             
                         loop_num_till_UD = max_loop_num_with_position
-                    elif (self.turn_count + self.num_next_2dots * 2 > self.turn_count_threshold)\
+                    elif (self.turn_count + math.ceil(self.num_next_2dots * 2.5) > self.turn_count_threshold)\
                             and (self.turn_count + self.num_next_2dots * 1 <= self.turn_count_threshold):
                         # 終わりが近いが直前でないなら...
                         if max_loop_num_till_depth >= self.past_max_UD_LN:
