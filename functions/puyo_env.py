@@ -880,18 +880,45 @@ class puyo_env:
                     best_procedure_index = best_NN_index
                     
                 else:
+                    # 連鎖が見つかっていたら...
                     is_LN_used = True
                     
-                    # ターン数 + 既に確定した数 * 2
-                    if (self.turn_count + self.num_next_2dots * 3 > self.turn_count_threshold)\
-                            and (max_loop_num_till_depth >= self.past_max_LN):
-                        # もし終わり間近なら, 同じ連鎖数でも手順が早いものを選ぶ
+                    if self.turn_count + math.ceil(self.num_next_2dots * 1.1) > self.turn_count_threshold:
+                        # もし終わり直前なら...
+                        # 良い連鎖かどうかは関係なく手順が早いものを選ぶ
+                        is_earlier_chosen = True
                         max_loop_num_tobe_considered = np.copy(loop_num_till_max_depth)
                         max_loop_num_tobe_considered_sort_index = (-max_loop_num_tobe_considered).argsort(axis=1)
                         max_loop_num_tobe_considered_sort_index = -max_loop_num_tobe_considered_sort_index 
-                        is_earlier_chosen = True
+                    elif self.turn_count + self.num_next_2dots * 2 > self.turn_count_threshold:
+                        # もし終わりが近いが直前でないなら...
+                        if max_loop_num_till_depth >= self.past_max_LN:
+                            # もし良い連鎖数があれば
+                            # 同じ連鎖数でも手順が早いものを選ぶ
+                            is_earlier_chosen = True
+                            max_loop_num_tobe_considered = np.copy(loop_num_till_max_depth)
+                            max_loop_num_tobe_considered_sort_index = (-max_loop_num_tobe_considered).argsort(axis=1)
+                            max_loop_num_tobe_considered_sort_index = -max_loop_num_tobe_considered_sort_index 
+                        else:
+                            # もし良い連鎖数がなければ
+                            # 手順が遅いものを選ぶことで成長を望む
+                            is_earlier_chosen = False 
+                            max_loop_num_tobe_considered = np.copy(loop_num_till_max_depth[:,1:])
+                            max_loop_num_tobe_considered_sort_index = (-max_loop_num_tobe_considered).argsort(axis=1)
+                            
+                            # 最後まで連鎖は一切打ちたくない
+                            if np.all( loop_num_till_max_depth[:,0]>0 ):
+                                # でも連鎖が避けられない場合がある
+                                # 出来るだけ連鎖が少ないものを選ぶ.
+                                max_loop_num_tobe_considered[ :, :] = -max_loop_num_tobe_considered
+                                if if_disp:
+                                    print('  Cannot avoid loop num > 0... ', end='')
+                            else:
+                                max_loop_num_tobe_considered[ loop_num_till_max_depth[:,0]>0, :] = -1
+                            
                     else:
                         # まだターンが残されているなら, 手順が遅いものを選ぶことで成長を望む
+                        is_earlier_chosen = False
                         max_loop_num_tobe_considered = np.copy(loop_num_till_max_depth[:,1:])
                         max_loop_num_tobe_considered_sort_index = (-max_loop_num_tobe_considered).argsort(axis=1)
                         
@@ -904,8 +931,6 @@ class puyo_env:
                                 print('  Cannot avoid loop num > 0... ', end='')
                         else:
                             max_loop_num_tobe_considered[ loop_num_till_max_depth[:,0]>0, :] = -1
-                        
-                        is_earlier_chosen = False 
                         
                     # 最高連鎖数, 手順, NN_value の3つに基づいて決める
                     max_loop_num_with_priority = np.vstack([\

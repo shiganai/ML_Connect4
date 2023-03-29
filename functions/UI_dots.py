@@ -6,7 +6,7 @@ from functions import engine_dots as eg
 colors = eg.colors
 # colors_exist = eg.colors_exist
 
-size = 172 * 0.6 # Set scatter size. 
+size = 172 * 0.4 # Set scatter size. 
 linewidth = 4
 
 def print_dots(dots_kind_matrix_3D):
