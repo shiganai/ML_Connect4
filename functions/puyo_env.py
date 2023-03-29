@@ -36,6 +36,9 @@ class puyo_env:
         
         self.to_use_result_till_max_depth = to_use_result_till_max_depth
         self.mode_str = mode_str
+        if (self.mode_str == "D_LN") and (self.num_next_2dots < 2):
+            raise Exception("D_LN mode make a decision based on determined loop num, so you need to set 2 or more for num_next_2dots")
+            
         
         self.num_single_depth_pattern = self.num_horizontal + (self.num_horizontal-1)
         self.num_candidate = self.num_single_depth_pattern * 2
@@ -293,6 +296,12 @@ class puyo_env:
                 candidate_max_depth = candidate_max_depth[:,:,trimming_index]
                 procedure_till_max_depth = procedure_till_max_depth[trimming_index,:]
                 loop_num_till_max_depth = loop_num_till_max_depth[trimming_index,:]
+                
+                # # for debug
+                # if not(self.previous_is_NN_value_chosen):
+                #     tmp = np.where(np.all(procedure_till_max_depth == self.previous_procedure_transition[1:], axis=1))[0]
+                #     if tmp.shape[0] == 0:
+                #         print('', end='')
             
             # candidate_max_depth はあるインデックスだけ変更とかしないから、参照コピーで十分
             candidate_max_depth_before = candidate_max_depth
@@ -540,6 +549,8 @@ class puyo_env:
         self.previous_loop_num_transition = np.zeros(self.num_next_2dots)
         self.previous_max_UD_LN = 0
         self.past_max_UD_LN = 0
+        self.previous_is_earlier_chosen = False
+        self.past_max_LN = 0
         
         actions_and_loop_nums_till_terminated = None # None で初期化しておいて、 初めてかどうか判定に使う.
         while True:
@@ -726,7 +737,7 @@ class puyo_env:
                 # ただし, next_2dots によって max_UD_LN に基づいて手順を採用しても,
                 # 連鎖を打たざるを得ない状況, もしくは連鎖尾をつぶしてしまう状況になることがある
                 # その時は max_UD_LN が減少する.
-                self.previous_is_NN_value_chosen = is_LN_used
+                self.previous_is_NN_value_chosen = not(is_LN_used)
                 self.previous_procedure_transition = procedure_till_max_depth[best_procedure_index,:]
                 self.previous_max_UD_LN = max_UD_LN
                 if self.past_max_UD_LN < max_UD_LN:
@@ -752,6 +763,152 @@ class puyo_env:
                 
                 if if_disp:
                     print("  LN: {}".format(chosen_loop_num_transition), end="")
+                    
+            elif self.mode_str == "D_LN":
+                # 未確定連鎖数を考慮する場合
+                # 基本的に連鎖数が高いものを選択する
+                # 連鎖数が同じ場合は, NN_value を参考にする
+                is_NN_value_chosen = False
+                
+                # 確定連鎖の最大値を取得
+                max_loop_num_till_depth = loop_num_till_max_depth_abst.max()
+                
+                # NN value を取得しておく
+                NN_values = model(candidate_max_depth).to('cpu').detach().numpy().copy().flatten()
+                NN_values = np.array(NN_values)
+                
+                compared_UD_LN_length = 0
+                max_compared_UD_LN_length = np.Inf
+                is_LN_used = False
+                is_UD_LN_used = False
+                is_earlier_chosen = False
+                
+                if (max_loop_num_till_depth == 0):
+                    # もしまだ何も連鎖が見つかっていない時は, NN_value に基づいて探す
+                    is_LN_used = False
+                    
+                    # NNの計算値が最も大きいものを特定
+                    best_NN_value = NN_values.max()
+                    best_NN_index = np.where(NN_values == best_NN_value)[0]
+                    if len(best_NN_index) > 1:
+                        best_NN_index = best_NN_index[np.random.randint(0, len(best_NN_index))]
+                    else:
+                        best_NN_index = best_NN_index[0]
+                    
+                    
+                    # LN の判断結果
+                    best_procedure_index = best_NN_index
+                    
+                else:
+                    is_LN_used = True
+                    
+                    # ターン数 + 既に確定した数 * 2
+                    if (self.turn_count + self.num_next_2dots * 3 > self.turn_count_threshold)\
+                            and (max_loop_num_till_depth >= self.past_max_LN):
+                        # もし終わり間近なら, 同じ連鎖数でも手順が早いものを選ぶ
+                        max_loop_num_tobe_considered = np.copy(loop_num_till_max_depth)
+                        max_loop_num_tobe_considered_sort_index = (-max_loop_num_tobe_considered).argsort(axis=1)
+                        max_loop_num_tobe_considered_sort_index = -max_loop_num_tobe_considered_sort_index 
+                        is_earlier_chosen = True
+                    else:
+                        # まだターンが残されているなら, 手順が遅いものを選ぶことで成長を望む
+                        max_loop_num_tobe_considered = np.copy(loop_num_till_max_depth[:,1:])
+                        max_loop_num_tobe_considered_sort_index = (-max_loop_num_tobe_considered).argsort(axis=1)
+                        
+                        # 最後まで連鎖は一切打ちたくない
+                        if np.all( loop_num_till_max_depth[:,0]>0 ):
+                            # でも連鎖が避けられない場合がある
+                            # 出来るだけ連鎖が少ないものを選ぶ.
+                            max_loop_num_tobe_considered[ :, :] = -max_loop_num_tobe_considered
+                            if if_disp:
+                                print('  Cannot avoid loop num > 0... ', end='')
+                        else:
+                            max_loop_num_tobe_considered[ loop_num_till_max_depth[:,0]>0, :] = -1
+                        
+                        is_earlier_chosen = False 
+                        
+                    # 最高連鎖数, 手順, NN_value の3つに基づいて決める
+                    max_loop_num_with_priority = np.vstack([\
+                                                                 max_loop_num_tobe_considered.max(axis=1), \
+                                                                 max_loop_num_tobe_considered_sort_index[:,0], \
+                                                                 NN_values, \
+                                                                 ]).transpose()
+                    
+                    remaining_index = np.array(range(max_loop_num_with_priority.shape[0]))
+                    remaining_max_loop_num_with_priority = np.copy(max_loop_num_with_priority)
+                    
+                    best_procedure_index = None
+                    is_NN_used = False
+                    for ii in range(max_loop_num_with_priority.shape[1]):
+                        if ii == 2:
+                            is_NN_used = True
+                        
+                        # 残ったものの中での最大値
+                        max_loop_num_till_depth = remaining_max_loop_num_with_priority[:,ii].max()
+                        
+                        # 残ったものに対するインデックス
+                        max_loop_num_till_depth_index = np.where(remaining_max_loop_num_with_priority[:,ii] == max_loop_num_till_depth)[0]
+                        
+                        if len(max_loop_num_till_depth_index) > 1:
+                            # 連鎖数が同じ場合はトリミングして次の連鎖数へ
+                            remaining_index = remaining_index[max_loop_num_till_depth_index]
+                            remaining_max_loop_num_with_priority = remaining_max_loop_num_with_priority[max_loop_num_till_depth_index,:]
+                        else:
+                            max_loop_num_till_depth_index = max_loop_num_till_depth_index[0]
+                            best_procedure_index = remaining_index[max_loop_num_till_depth_index]
+                            break
+                    
+                    if best_procedure_index is None:
+                        # 最高連鎖数, 手順, NN_value 全てが同等の物があったらランダム
+                        best_procedure_index = remaining_index[np.random.randint(0, len(remaining_index))]
+                    
+                
+                chosen_loop_num = loop_num_till_max_depth[best_procedure_index,0] # この一手の連鎖数を取得
+                chosen_loop_num_transition = loop_num_till_max_depth[best_procedure_index,:] # 連鎖数経緯を取得
+                action_single_depth = procedure_till_max_depth[best_procedure_index,0] # この一手の procedure を取得
+                
+                # if (self.previous_is_earlier_chosen)\
+                #     and not( np.all( self.previous_loop_num_transition[1:] == chosen_loop_num_transition[0:-1] ) ) \
+                #     and not(self.previous_loop_num_transition.max() < chosen_loop_num_transition.max() )\
+                #     and not(self.previous_loop_num_transition.max() == self.previous_loop_num_transition[0]):
+                #     print()
+                #     print([self.previous_loop_num_transition, chosen_loop_num_transition])
+                #     print(self.previous_procedure_transition)
+                #     tmp = np.where(np.all(procedure_till_max_depth[:,0:2] == self.previous_procedure_transition[1:], axis=1))[0]
+                #     print('',end='')
+                    
+                # トリミングされないようにフラグを立てておく
+                self.previous_is_NN_value_chosen = not(is_LN_used)
+                self.previous_procedure_transition = procedure_till_max_depth[best_procedure_index,:]
+                
+                if self.past_max_LN < loop_num_till_max_depth_abst.max():
+                    self.past_max_LN = loop_num_till_max_depth_abst.max()
+                
+                # for debug
+                self.previous_loop_num_transition = chosen_loop_num_transition
+                self.previous_is_earlier_chosen = is_earlier_chosen
+                
+                
+                if if_disp:
+                    print("  ", end='')
+                    
+                    if is_LN_used:
+                        choise_str = "D LN:{}".format(chosen_loop_num_transition)
+                        if is_NN_used:
+                            print("D LN:{} with NN:{:.2f}".format(\
+                                                                  chosen_loop_num_transition, \
+                                                                  NN_values[best_procedure_index]\
+                                                                  )\
+                                  ,end='')
+                        else:
+                            print("D LN:{}".format(chosen_loop_num_transition),end='')
+                    else:
+                        choise_str = "NN:{:.2f}".format(best_NN_value)
+                        print("NN:{:.2f}".format(best_NN_value),end='')
+                        
+                    if is_earlier_chosen:
+                        print(", is_earlier_chosen", end='')
+                        
             
             elif self.mode_str == "NN":
                 # ゲームオーバーまでの経緯が決定されていなければ...
