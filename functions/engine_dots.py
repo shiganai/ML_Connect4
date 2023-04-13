@@ -95,7 +95,12 @@ def fall_dots_once(dots_kind_matrix_3D):
     dots_kind_matrix_falled = np.take_along_axis(dots_kind_matrix_3D, empty_sorted_indecies, axis=0)
     return dots_kind_matrix_falled
 
-def connect_dots(dots_kind_matrix_3D, if_only_toBeDeleted=True, connected_threshold=connected_threshold_default):
+def connect_dots(dots_kind_matrix_3D, if_only_toBeDeleted=True, connected_threshold=connected_threshold_default,\
+                 start_vh_index=None):
+    # start_vh_index は初めに調べるよう指定する用の引数
+    # if not(start_vh_index is None) and (start_vh_index.shape[0]!=2):
+    #     raise Exception("not(start_vh_index is None) and (start_vh_index.shape[1]==2)")
+    
     # Use while true loop for checking dots connection
     dots_kind_matrix_3D = convet_2D_dots_to_3D(dots_kind_matrix_3D)
     
@@ -106,7 +111,7 @@ def connect_dots(dots_kind_matrix_3D, if_only_toBeDeleted=True, connected_thresh
     
     # しらみつぶし用の各層インデックスを作成しておく
     vertical_index_mesh, horizontal_index_mesh = np.meshgrid(range(num_vertical), range(num_horizontal))
-    all_index_order = np.array([vertical_index_mesh.flatten(), horizontal_index_mesh.flatten()])
+    all_index_order = np.array([vertical_index_mesh.flatten(), horizontal_index_mesh.flatten()]).transpose()
 
     is_checked_matrix_3D = np.full_like(dots_kind_matrix_3D, False, dtype=bool) # when this value is true, it is already checked and no more checking is needed.
     if if_only_toBeDeleted:
@@ -165,16 +170,23 @@ def connect_dots(dots_kind_matrix_3D, if_only_toBeDeleted=True, connected_thresh
         if if_only_toBeDeleted:
             # TODO: 各層に応じた checking_index_order の設定
             checking_priority = checking_priority_3D[:,:,target_layer_index]
-            checking_index_order = all_index_order[:,checking_priority.flatten().argsort()]
+            checking_index_order = all_index_order[checking_priority.flatten().argsort(),:]
             None
         else:
             # 全て調べる場合は何層目に着目していようと順番に探索する. そのための checking_index_order は設定済み
             None
-            
         
-        for checking_index_order_index in range(checking_index_order.shape[1]):
-            target_vertical_index = checking_index_order[0, checking_index_order_index]
-            target_horizontal_index = checking_index_order[1, checking_index_order_index]
+        # 初めに調べるよう指定する用の引数 start_vh_index が入力された場合
+        # checking_index_order は start_vh_index で置き換える
+        if not(start_vh_index is None):
+            if start_vh_index[target_layer_index].shape[1]!=2:
+                raise Exception("start_vh_index[{}].shape[1]!=2".format(target_layer_index))
+            
+            checking_index_order = start_vh_index[target_layer_index]
+        
+        for checking_index_order_index in range(checking_index_order.shape[0]):
+            target_vertical_index = checking_index_order[checking_index_order_index, 0]
+            target_horizontal_index = checking_index_order[checking_index_order_index, 1]
             
             # Start while loop until the connection ends up?
             adding_connected_dots = np.array([target_vertical_index, target_horizontal_index, False])
@@ -477,3 +489,228 @@ def get_candidate_3D_horizontal(dots_kind_matrix, next_2dots):
 
 def get_empty_matrix(dots_kind_matrix):
     return dots_kind_matrix == 0
+
+
+def get_UD_candidate_3D(dots_kind_matrix, connected_threshold=connected_threshold_default):
+    # UD stands for un-determined
+    # 現状, 1連鎖が起きる candidate_3D だけを返す.
+    
+    if (dots_kind_matrix.ndim>2) and (dots_kind_matrix.shape[2]>1):
+        raise Exception("only 2D input is allowed")
+    elif dots_kind_matrix.ndim>2:
+        # 2次元化
+        dots_kind_matrix = dots_kind_matrix[:,:,0]
+    
+    # 落とすべき場所と色の組み合わせを取得する
+    place_and_color = []
+    empty = get_empty_matrix(dots_kind_matrix)
+    num_emtpy = np.sum(empty,axis=0)
+    # 上下につながる組み合わせ
+    for horizontal_index in range(dots_kind_matrix.shape[1]):
+        if num_emtpy[horizontal_index] == 0:
+            continue
+        
+        # num_emtpy[horizontal_index] が 1 の時は -1, 2 の時は -2 の位置に新しい色を入れる
+        # そのあと num_vertical 分だけ足せば, 同じ座標を正で得られる
+        adding_vertical_index = -num_emtpy[horizontal_index]
+        adding_vertical_index = adding_vertical_index + dots_kind_matrix.shape[0]
+        
+        # 下につながる組み合わせ
+        if adding_vertical_index > 0:
+            # 列 horizontal_index の元々の頂点は adding_vertical_index - 1 の位置にある
+            adding_color = dots_kind_matrix[adding_vertical_index-1, horizontal_index]
+            place_and_color.append([adding_vertical_index, horizontal_index, adding_color])
+        
+        # 右につながる組み合わせ
+        # １個右の列の, 今回の列の空の個数 num_emtpy[horizontal_index] -> num_emtpy[horizontal_index]-1 の１つ上の色
+        if (horizontal_index < dots_kind_matrix.shape[1]-1)\
+                and (num_emtpy[horizontal_index+1] < num_emtpy[horizontal_index]):
+            adding_color = dots_kind_matrix[adding_vertical_index, horizontal_index+1]
+            place_and_color.append([adding_vertical_index, horizontal_index, adding_color])
+            
+        # 左につながる組み合わせ
+        # １個左の列の, 今回の列の空の個数 num_emtpy[horizontal_index] -> num_emtpy[horizontal_index]-1 の１つ上の色
+        if (horizontal_index > 0)\
+                and (num_emtpy[horizontal_index-1] < num_emtpy[horizontal_index]):
+            adding_color = dots_kind_matrix[adding_vertical_index, horizontal_index-1]
+            place_and_color.append([adding_vertical_index, horizontal_index, adding_color])
+    
+    # 0次元目: 組み合わせの数, 1次元目: 色と場所
+    place_and_color = np.array(place_and_color)
+    place_and_color = np.unique(place_and_color,axis=0)
+    candidate_3D = np.repeat( dots_kind_matrix[:,:,np.newaxis], place_and_color.shape[0], axis=2 )
+    for ii in range(place_and_color.shape[0]):
+        inserting_vertical_index = place_and_color[ii,0]
+        inserting_horizontal_index = place_and_color[ii,1]
+        inserting_color = place_and_color[ii,2]
+        
+        candidate_3D[inserting_vertical_index, inserting_horizontal_index, ii] = inserting_color
+    
+    if place_and_color.shape[0] > 0:
+        # (2,1)x? のリストに戻す
+        start_vh_index = place_and_color[:,0:2]
+        start_vh_index = np.vsplit(start_vh_index, start_vh_index.shape[0])
+        connected_dots_list_3D, max_connected_num = connect_dots(candidate_3D, \
+                                            connected_threshold=connected_threshold, \
+                                            start_vh_index=start_vh_index)
+        
+        # ndarrayの参照を渡して, ndarrayの各要素に変化させるから,
+        # 変数 candidate_3D = で受けなくても, 変更は適用されるが、
+        # 分かりやすくるために受けておく
+        candidate_3D = delete_connected_dots(candidate_3D, connected_dots_list_3D, connected_threshold=connected_threshold)
+        
+        # 1連鎖も起きないやつものは消す
+        candidate_3D = np.delete(candidate_3D, max_connected_num<connected_threshold, axis=2)
+        
+    return candidate_3D
+
+def get_if_generate_new_connection(dots_kind_matrix, place_and_color):
+    # この方法は connected_threshold=4 でしか使えない...
+    
+    vn, hn, _ = get_base_dots_info(dots_kind_matrix)
+    
+    vi = place_and_color[0]
+    hi = place_and_color[1]
+    target_color = place_and_color[2]
+    
+    target_color_matrix = dots_kind_matrix == target_color
+    
+    ############################
+    # xooo
+    if (hi+4 < hn) and (np.all(target_color_matrix[vi, hi+1:hi+4])):
+        return True
+    
+    if vi > 0:
+        #  x
+        #  ooo
+        if (hi-0 >= 0) and (hi+3 < hn) and (np.all(target_color_matrix[vi-1, hi-0:hi+3])):
+            return True
+        
+        #   x
+        #  ooo
+        if (hi-1 >= 0) and (hi+2 < hn) and (np.all(target_color_matrix[vi-1, hi-1:hi+2])):
+            return True
+        
+        #    x
+        #  ooo
+        if (hi-2 >= 0) and (hi+1 < hn) and (np.all(target_color_matrix[vi-1, hi-2:hi+1])):
+            return True
+    
+    #  ooox
+    if (hi-3 >= 0) and (hi+0 < hn) and (np.all(target_color_matrix[vi, hi-3:hi+0])):
+        return True
+    
+    ############################
+    # ox
+    #  oo
+    if (vi>0) and (hi-1 >= 0) and (hi+0 < hn) and (np.all(target_color_matrix[vi, hi-3:hi+0])):
+        return True
+    
+    #  o
+    # xoo
+    
+    # xo
+    #  oo
+    
+    #  x
+    #  o
+    #  oo
+    
+    #  ox
+    #  oo
+    
+    #  o
+    #  oox
+    
+    #   o
+    # xoo
+    
+    #  xo
+    #  oo
+    
+    #   x
+    #   o
+    #  oo
+    
+    #   ox
+    #  oo
+    
+    #   o
+    #  oox
+    
+    #   xo
+    #  oo
+    
+    ############################
+    # xoo
+    # o
+    
+    #  oo
+    # xo
+    
+    # xoo
+    #  o
+    
+    #  x
+    #  oo
+    #  o
+    
+    #   x
+    #  oo
+    #  o
+    
+    #  oox
+    #  o
+    
+    # xoo
+    #   o
+    
+    #  x
+    #  oo
+    #   o
+    
+    #   x
+    #  oo
+    #   o
+    
+    #  oox
+    #   o
+    
+    #  oo
+    #   ox
+    
+    #  oox
+    #    o
+    
+    
+    
+    ############################
+    #  o
+    #  o
+    # xo
+    
+    #  o
+    # xo
+    #  o
+    
+    # xo
+    #  o
+    #  o
+    
+    #  x
+    #  o
+    #  o
+    #  o
+    
+    #  ox
+    #  o
+    #  o
+    
+    #  o
+    #  ox
+    #  o
+    
+    #  o
+    #  o
+    #  ox
+    
