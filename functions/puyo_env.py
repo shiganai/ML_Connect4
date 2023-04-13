@@ -50,7 +50,7 @@ class puyo_env:
         
         self.action_space = self.action_space(self)
         
-        self.turn_count_threshold = -1 + 6 * 6
+        self.turn_count_threshold = -1 + 6 * 4
     
 # =============================================================================
 # =============================================================================
@@ -614,10 +614,13 @@ class puyo_env:
                 max_compared_UD_LN_length = np.Inf
                 is_LN_used = False
                 is_UD_LN_used = False
+                is_NN_used = False
                 is_earlier_chosen = False
                 if (max_loop_num_till_depth == 0) and (max_UD_LN == 0):
                     # もしまだ何も連鎖が見つかっていない時は, NN_value に基づいて探す
+                    is_NN_used = True
                     is_LN_used = False
+                    is_UD_LN_used = False
                     NN_values = model(candidate_max_depth).to('cpu').detach().numpy().copy().flatten()
                     
                     NN_values = np.array(NN_values)
@@ -634,6 +637,7 @@ class puyo_env:
                     best_procedure_index = best_NN_index
                     
                 else:
+                    is_NN_used = False
                     is_LN_used = True
                     is_earlier_chosen = False
                     
@@ -785,6 +789,7 @@ class puyo_env:
                     if best_procedure_index is None:
                         # 連鎖数を複数比べて, 最後まで一緒で, best_procedure_index が設定されていない時
                         # NN_value を基準に決める
+                        is_NN_used = True
                         
                         NN_values = model(candidate_max_depth[:,:,remaining_index]).to('cpu').detach().numpy().copy().flatten()
                         
@@ -818,30 +823,23 @@ class puyo_env:
                     
                 
                 if if_disp:
+                    print("  D_LN: {}".format(loop_num_till_max_depth[best_procedure_index,:]), end="")
+                    
                     if is_LN_used:
                         if is_earlier_chosen:
                             print(", is_earlier_chosen", end='')
                             
                         if is_UD_LN_used:
-                            # chosen_loop_num_transition = np.concatenate([\
-                            #                                              loop_num_till_max_depth[best_procedure_index,:], \
-                            #                                              np.array([-1]),\
-                            #                                              loop_num_till_UD[best_procedure_index, 0:compared_UD_LN_length], \
-                            #                                              ],axis=0) # 連鎖数経緯を取得
                                 
-                            print("  D_LN:{} with UD_LN:{}"\
-                                  .format(loop_num_till_max_depth[best_procedure_index,:], \
-                                          self.UD_LN[best_procedure_index,0:compared_UD_LN_length]), end="")
+                            print(" with UD_LN:{}"\
+                                  .format(self.UD_LN[best_procedure_index,0:compared_UD_LN_length]), end="")
                             choise_str = "UD LN:{}".format(self.UD_LN[best_procedure_index,0])
                         else:
-                            # chosen_loop_num_transition = loop_num_till_max_depth[best_procedure_index,:]
-                            print("  D_LN: {}".format(loop_num_till_max_depth[best_procedure_index,:]), end="")
                             choise_str = "D LN:{}".format(max_loop_num_till_depth)
-                    else:
-                        # chosen_loop_num_transition = loop_num_till_max_depth[best_procedure_index,:]
-                        print("  D_LN: {} with NN:{:.1f}"\
-                              .format(loop_num_till_max_depth[best_procedure_index,:], best_NN_value), end="")
-                        choise_str = "NN:{:.2f}".format(best_NN_value)
+                            
+                    if is_NN_used:
+                        print(" with NN:{:.1f}".format(best_NN_value), end='')
+                        choise_str = choise_str + "NN:{:.2f}".format(best_NN_value)
                     
                     
             elif self.mode_str == "D_LN":

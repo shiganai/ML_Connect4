@@ -17,6 +17,7 @@ import time
 # env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=10, mode_str="NN")
 # env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=np.Inf, mode_str="UD_LN")
 # env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=10, mode_str="UD_LN")
+# env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=np.Inf, mode_str="UD_LN")
 # env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=np.Inf, mode_str="D_LN")
 # env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=100, mode_str="D_LN")
 
@@ -54,7 +55,7 @@ def eval_network(env, model):
     return all_scores
     
 
-pop_size = 10
+pop_size = 30
 population = Population(env=env, NN=NN, size=pop_size)
 score = 0
 lines = 0
