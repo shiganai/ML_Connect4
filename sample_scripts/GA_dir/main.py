@@ -14,7 +14,22 @@ if_disp_dots=False
 
 import time
 
-env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=10)
+# env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=10, mode_str="NN")
+# env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=np.Inf, mode_str="UD_LN")
+# env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=10, mode_str="UD_LN")
+# env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=np.Inf, mode_str="UD_LN")
+# env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=np.Inf, mode_str="D_LN")
+# env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=100, mode_str="D_LN")
+
+# The below two options runs at almost same speed
+# env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=np.Inf, mode_str="UD_LN")
+# env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=300, mode_str="D_LN")
+
+# The below two options runs at almost same speed of 1 second / step until 36 step
+env = puyo_env.puyo_env(num_next_2dots=2, num_kind=4, max_num_candidate=7, mode_str="UD_LN")
+# env = puyo_env.puyo_env(num_next_2dots=3, num_kind=4, max_num_candidate=80, mode_str="D_LN")
+
+
 NN = lambda env: CNN_symmetry(env)
 
 # if gpu is to be used
@@ -33,14 +48,14 @@ def preview_ai(env, model):
 def eval_network(env, model):
     all_scores = []
     # ここで平均をとる数が多すぎると, 消極的なモノばかりが採用されるようになる.
-    for ii in range(4):
+    for ii in range(2):
         score, _, _, _ = env.play_one_game(model)
         all_scores.append(score)
     # mean_score = np.array(all_scores).mean()
     return all_scores
     
 
-pop_size = 50
+pop_size = 30
 population = Population(env=env, NN=NN, size=pop_size)
 score = 0
 lines = 0
@@ -62,7 +77,8 @@ while True:
         all_score = eval_network(env, population.models[i])
         all_scores.append(all_score)
         all_score = np.array(all_score)
-        population.fitnesses[i] = all_score.mean()
+        # population.fitnesses[i] = all_score.mean()
+        population.fitnesses[i] = all_score.min()
         # population.fitnesses[i] = (all_score.max() + all_score.min())/2
         print("{},".format(i), end="")
     print()
@@ -75,9 +91,9 @@ while True:
         score = preview_ai(env, best_model)
         print("score: {}".format(score))
 
-    all_scores = -np.array(all_scores)
-    sorting_index = all_scores.mean(axis=1).argsort()
-    all_scores = (-all_scores[sorting_index, :]).tolist()
+    all_scores = np.array(all_scores)
+    sorting_index = (-population.fitnesses).argsort()
+    all_scores = (all_scores[sorting_index, :]).tolist()
     print(all_scores)
     print("time: {}".format(fined-start))
     population = Population(env=env, NN=NN, size=pop_size, old_population=population)
